@@ -116,10 +116,12 @@ def main():
 
                     elif action == change_course:
                         break
+
                     else:
                         mode = None
                         is_chef = False
                         print("MSG: Logging out as chef...\n")
+                        break
         #* END chef interface
 
         #* START crew interface
