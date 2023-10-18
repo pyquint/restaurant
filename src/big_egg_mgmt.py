@@ -1,6 +1,10 @@
-import sys
-
-
+"""
++---------------------------------------+
+|   CLI Restaurant Program,             |
+|   for the chef and crew of Big Egg.   |
+|   Created By Static Typing.           |
++---------------------------------------+
+"""
 
 
 def main():
@@ -21,20 +25,10 @@ def main():
         #* START chef interface
         if mode == "chef":
             is_chef = True
-
-            def log_out_as_chef():
-                global mode
-                global is_chef
-
-                mode = None
-                is_chef = False
-
-                print("MSG: Logging out as chef...\n")
-
             print("MSG: Welcome, Chef!\n")
 
             while is_chef:
-                action = get_input_loop("What would you like to to?",
+                action = get_input_loop("What would you like to do?",
                                         (goto_course := "edit the menu",
                                          load := "import menu from file",
                                          "log out as chef"))
@@ -52,8 +46,9 @@ def main():
                     finally:
                         continue
                 else:
-                    log_out_as_chef()
-                    print(is_chef, mode)
+                    mode = None
+                    is_chef = False
+                    print("MSG: Logging out as chef...\n")
                     break
 
                 # course-localized modifications
@@ -120,11 +115,11 @@ def main():
                         print("")
 
                     elif action == change_course:
-                        continue
-                    else:
-                        log_out_as_chef()
-                        print(is_chef, mode)
                         break
+                    else:
+                        mode = None
+                        is_chef = False
+                        print("MSG: Logging out as chef...\n")
         #* END chef interface
 
         #* START crew interface
@@ -246,7 +241,7 @@ def main():
         #* END crew interface
 
         else:
-            sys.exit("MSG: See you again soon!")
+            print("MSG: See you again soon!")
 
 
 def get_input_loop(prompt, returnVals, nl=True) -> str:
