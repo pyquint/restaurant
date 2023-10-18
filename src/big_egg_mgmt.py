@@ -142,10 +142,10 @@ def main():
 
             while True:
                 action = get_input_loop("What would you like to do?",
-                                        (order := "take order" if not empty_menu else "",
+                                        (item := "take order" if not empty_menu else "",
                                          "log out as crew"))
                 costumer_num = 0
-                if action == order:
+                if action == item:
                     is_ordering = True
                     orders, total = {},  0
 
@@ -167,17 +167,18 @@ def main():
                             if choice == choose_course:
                                 break
 
-                            amount = get_num_loop(f"Amount of {order}: ", numtype="int", nl=False)
+                            order, price = choice.split(" - $")
+                            amount = get_num_loop(f"Amount of {item}: ", numtype="int", nl=False)
+
                             if amount <= 0:
                                 print("Invalid amount!")
                                 continue
 
-                            order, price = choice.split(" - $")
                             if order in orders:
-                                print(f"MSG: Added {amount} to {order}")
+                                print(f"MSG: Added {amount} to {item}")
                                 orders[order][0] += amount
                             else:
-                                print(f"MSG: Costumer orderd {order} x {amount}.\n")
+                                print(f"MSG: Costumer ordered {item} x {amount}.\n")
                                 orders[order] = [price, amount]
 
                             # end prompt
@@ -185,17 +186,17 @@ def main():
                                 continue
                             else:
                                 #* confirmation prompt loop
+                                print("Ordered:")
                                 while True:
-                                    for order in orders:
-                                        print("Ordered:")
-                                        print(f"> {order} -- ${orders[order][0]} x  {orders[order][1]}")
+                                    for item in orders:
+                                        print(f"> {item} -- ${orders[item][0]} x  {orders[item][1]}")
                                     confirm = get_input_loop("Confirm?",
                                                             (edit := "No, edit amount",
                                                             remove := "No, remove order",
                                                             "yes"))
                                     if confirm == edit:
                                         to_edit_amount = get_input_loop("Which would you like to edit the amount of?", orders)
-                                        amount = get_num_loop(f"New amount of {order}: ", numtype="int")
+                                        amount = get_num_loop(f"New amount of {item}: ", numtype="int")
                                         orders[to_edit_amount][1] = amount
                                         print(f"MSG: Changed {to_edit_amount}'s amount to {amount}.\n")
                                     elif confirm == remove:
@@ -211,8 +212,8 @@ def main():
                     s, c = 32, '.'
                     print("=" * s * 2)
                     print("ITEMS ORDERED:")
-                    for order in orders:
-                            print(order.ljust(s, c) + f"${orders[order][0]} x {orders[order][1]}".rjust(s, c))
+                    for item in orders:
+                            print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
 
                     print("")
                     print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
