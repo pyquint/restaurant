@@ -43,12 +43,12 @@ def main():
                     while True:
                         # prompt the chef on what to do in the current course
                         course_action = get_input_loop(f"Action for the {course.upper()} course.",
-                                                (add := "add item",
-                                                edit := "edit item",
-                                                delete := "delete item",
-                                                display := f"display {course} items",
-                                                change_course := "change course",
-                                                "log out as chef"))
+                                                       (add := "add item",
+                                                        edit := "edit item",
+                                                        delete := "delete item",
+                                                        display := f"display {course} items",
+                                                        change_course := "change course",
+                                                        "log out as chef"))
 
                         if course_action == add:
                             item = input("PROMPT: Please specify the name of the item: ")
@@ -130,7 +130,6 @@ def main():
                     print("MSG: Logging out as chef...\n")
                     break
         #* END chef interface
-
 
         #* START crew interface
         elif mode == "crew":
@@ -255,7 +254,7 @@ def main():
                     print("")
                     print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
 
-                    if costumer_type in ["senior citizen", "PWD"]:
+                    if costumer_type == "senior citizen/PWD":
                         print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
                         total = total + (total * 0.2)
 
