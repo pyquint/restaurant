@@ -6,6 +6,7 @@
 +---------------------------------------+
 """
 
+import os
 import json
 
 
@@ -40,7 +41,7 @@ def menu_is_empty() -> bool:
 
 def main():
     global menu
-    costumer_n = 0
+    customer_n = 0
 
     while True:
         mode = get_input_loop("Who are you? Are you the chef or a crew?", ("chef", "crew", "exit restaurant"))
@@ -60,25 +61,28 @@ def main():
 
                 if action == edit:
                     in_course = True
+
                     while in_course:
-                        course = get_input_loop("Which course would you like to go to?",
-                                                (menu))
+                        course = get_input_loop("Which course would you like to go to?", (*menu, "go back"))
+                        if course == "go back":
+                            break
+
                         # course-localized modifications
                         while True:
                             # prompt the chef on what to do in the current course
-                            empty_menu = len(menu[course]) == 0
+                            empty_menu = menu_is_empty()
                             course_action = get_input_loop(f"Action for the {course.upper()} course.",
                                                         (add := "add item",
                                                          edit := "edit item",
                                                          delete := "delete item",
                                                          display := f"display {course} items",
-                                                         change_course := "change course",
+                                                         change_course := "change course (back)",
                                                          "log out as chef"))
 
                             if course_action == add:
                                 item = input("PROMPT: Please specify the name of the item: ")
                                 if item_is_present(item):
-                                    print(f"\nMSG: {item} is already in the menu.")
+                                    print(f"\nMSG: {item} is already in the menu.\n")
                                 else:
                                     if course == "beverages and drinks":
                                         size = get_input_loop("Specify the serve size: ", ("small", "medium", "large")).upper()
@@ -117,14 +121,14 @@ def main():
 
                                 if confirm == "yes":
                                     del menu[course][to_delete]
-                                    print(f"MSG: You have removed {to_delete} from {course}.")
+                                    print(f"MSG: You have removed {to_delete} from {course}.\n")
                                 else:
                                     print("MSG: Cancelling deletion...\n")
 
                             elif course_action == display:
                                 print(f"MSG: Displaying {course} items...")
                                 if empty_menu:
-                                    print(f"MSG: No {course}s yet.\n")
+                                    print(f"MSG: No {course} yet.\n")
                                     continue
                                 for item, price in menu[course].items():
                                     print(f"> '{item.title()}': ${price}")
@@ -140,21 +144,42 @@ def main():
                                 break
 
                 elif action == load:
-                    # TODO JSON file chekcing
                     try:
-                        filename = input("PROMPT: Input file directory, without leading and closing quoation marks:\n")
-                        with open(filename, 'r') as f:
+                        filename = input("PROMPT: File path:\n")
+                        if not os.path.exists(filename):
+                            print(f"No such file/path '{filename}'.")
+
+                        with open(filename) as f:
                             loaded_menu = json.load(f)
                             if loaded_menu.keys() != menu.keys():
                                 print("Invalid JSON. Must have the same 5 courses.")
                                 continue
                             menu = loaded_menu
+                            print(f"Successfully imported {filename} as menu.\n")
+
                     except FileNotFoundError:
                         print(f"File {filename} is not found!")
 
                 elif action == save:
-                    # TODO JSON file output
-                    ...
+                    while True:
+                        output = input("PROMPT: Name of save file (end in .json): ")
+                        if not output.lower().endswith(".json"):
+                            print("MSG: Must end the file with .json.\n")
+                            continue
+                        else:
+                            break
+
+                    xw, msg = "x", f"MSG: Created file {output}.\n"
+                    if os.path.exists(output):
+                        confirm_overwrite = get_input_loop(f"File {output} exists. Overwrite?", ("yes", "no"))
+                        if confirm_overwrite == "no":
+                            print("MSG: Cancelling saving menu as JSON...\n")
+                            continue
+                        xw, msg = "w", f"Overwritten {output} with current menu.\n"
+
+                    with open(output, xw) as f:
+                        json.dump(menu, f)
+                    print(msg)
 
                 elif action == see:
                     items = retrieve_menu_items(values=True)
@@ -193,16 +218,16 @@ def main():
                 action = get_input_loop("What would you like to do?", (take := "take order", "log out as crew"))
 
                 if action == take:
-                    print(f"MSG: Taking order of costumer #{costumer_n + 1}.\n")
+                    print(f"MSG: Taking order of customer #{customer_n + 1}.\n")
                     orders, total = {},  0
 
-                    costumer_type = get_input_loop("What is the type of costumer?", ("regular", "senior citizen/PWD"))
+                    customer_type = get_input_loop("What is the type of customer?", ("regular", "senior citizen/PWD"))
 
                     is_ordering = True
                     in_confirmation = False
 
                     while is_ordering:
-                        course = get_input_loop("What course would the costumer like to go to?", menu.keys())
+                        course = get_input_loop("What course would the customer like to go to?", menu)
 
                         if len(menu[course]) == 0:
                             print(f"Sorry, no {course} dishes yet.")
@@ -210,7 +235,7 @@ def main():
 
                         in_course = True
                         while in_course:
-                            choice = get_input_loop(f"What {course} would the costumer like to order?",
+                            choice = get_input_loop(f"What {course} would the customer like to order?",
                                                     (*(f"{item} - ${price}" for item, price in menu[course].items()),
                                                     choose_course := "choose another course") )
 
@@ -228,16 +253,17 @@ def main():
                                 print(f"MSG: Added {amount} to {order}.\n")
                                 orders[order][1] += amount
                             else:
-                                print(f"MSG: Costumer ordered {order} x {amount}.\n")
+                                print(f"MSG: customer ordered {order} x {amount}.\n")
                                 orders[order] = [price, amount]
 
                             total += price * amount
 
                             # end order prompt
                             if not in_confirmation:
-                                order_again = get_input_loop("Does the costumer want to order another item?", ("yes", "no"))
-                            if order_again == "yes":
-                                continue
+                                order_again = get_input_loop("Does the customer want to order another item?", ("yes", "no"))
+                                if order_again == "yes":
+                                    in_course = False
+                                    continue
 
                             #* confirmation prompt loop
                             is_confirmed = False
@@ -265,13 +291,13 @@ def main():
                                     while True:
                                         new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
                                         if new_amount < 0:
-                                            print("MSG: Invalid amount.")
+                                            print("MSG: Invalid amount.\n")
                                         elif new_amount == 0:
-                                            print("MSG: Consider removing the order.")
+                                            print("MSG: Consider REMOVING the order.\n")
                                         else:
                                             break
 
-                                    total += orders[item_to_edit][0] * new_amount - orders[item_to_edit][1]
+                                    total += orders[item_to_edit][0] * (new_amount - orders[item_to_edit][1])
                                     orders[item_to_edit][1] = new_amount
                                     print(f"MSG: Changed {item_to_edit}'s amount to {new_amount}.\n")
 
@@ -281,12 +307,13 @@ def main():
                                         print("MSG: Cancelling order deletion...\n")
                                         continue
 
-                                    if not len(orders) == 1:
-                                        print("Consider CANCELLING the order.")
+                                    if len(orders) == 1:
+                                        print("Consider CANCELLING the order.\n")
                                         continue
 
                                     del_price, del_am = orders.pop(to_remove)
                                     total -= del_price * del_am
+                                    print(f"MSG: Removed {to_remove} x {del_am} from orders.")
 
                                 elif confirm == add:
                                     in_confirmation = True
@@ -296,7 +323,7 @@ def main():
                                 elif confirm == cancel_order:
                                     confirm_cancel = get_input_loop("Are you sure want to cancel the whole order?", ("yes", "no"))
                                     if confirm_cancel == "yes":
-                                        print("Cancelling order...")
+                                        print(f"Costumer #{customer_n + 1} cancelled their order.\n")
                                         is_ordering = in_course = in_confirmation = False
                                         break
                                     else:
@@ -304,7 +331,7 @@ def main():
 
                                 else:
                                     is_confirmed = True
-                                    in_course = False
+                                    in_confirmation = in_course = False
                                     break
 
                             if is_ordering and not in_confirmation:
@@ -318,9 +345,9 @@ def main():
                                 print("")
                                 print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
 
-                                if costumer_type == "senior citizen/PWD":
+                                if customer_type == "senior citizen/PWD":
                                     print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
-                                    total = total + (total * 0.2)
+                                    total -= total * 0.2
 
                                 paid = False
                                 while not paid:
@@ -338,7 +365,7 @@ def main():
                                 print("=" * s * 2 + "\n")
                                 #* END receipt
 
-                                costumer_n += 1
+                                customer_n += 1
                                 is_ordering = False
                                 break
 
@@ -387,5 +414,5 @@ def get_num_loop(prompt: str, numtype="float", nl=True) -> float|int:
 
 
 if __name__ == "__main__":
-    print("Welcome to Big Egg's Management Application!")
+    print("Welcome to Big Egg's Management Application!\n")
     main()
