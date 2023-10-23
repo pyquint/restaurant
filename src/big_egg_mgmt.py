@@ -375,7 +375,4 @@ def get_num_loop(prompt: str, numtype="float", nl=True) -> float|int:
 
 if __name__ == "__main__":
     print("Welcome to Big Egg's Management Application!")
-    # main()
-    get_num_loop("Test", numtype="float")
-    get_num_loop("Test", numtype="int")
-    string = get_num_loop("Test", numtype="str")
+    main()
