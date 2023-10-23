@@ -9,6 +9,7 @@
 # Yummy spaghetti code.
 # Trying to (mostly) only use if-statements, loops, built-in functions and class methods.
 
+# Items here are for testing purposes only. Will be removed after testing period.
 menu : dict[str: int]  = {
     "appetizer": {"PEA": 1},
     "main": {"BEEF STEW": 100, "SOUP #5": 5},
@@ -17,15 +18,16 @@ menu : dict[str: int]  = {
     "beverages and drinks": {"COKE ZERO LARGE": 14},
     }
 
+
 def item_is_present(item) -> bool:
     return item in retrieve_menu_items()
 
 
 def retrieve_menu_items(values: bool = False):
     if values:
-        iterable = [(item, value) for course in menu for (item, value) in menu[course].items()]
+        iterable = ((item, value) for course in menu for (item, value) in menu[course].items())
     else:
-        iterable = [item for course in menu for item in menu[course]]
+        iterable = (item for course in menu for item in menu[course])
     return iterable
 
 
@@ -35,7 +37,6 @@ def menu_is_empty() -> bool:
 
 def main():
     costumer_n = 0
-    # Items here are for testing purposes only. Will be removed after testing period.
 
     while True:
         mode = get_input_loop("Who are you? Are you the chef or a crew?", ("chef", "crew", "exit restaurant"))
@@ -176,160 +177,161 @@ def main():
                     print(f"> {item} - ${price}")
                 print("")
 
-        while True:
-            action = get_input_loop("What would you like to do?", (take := "take order", "log out as crew"))
+            while True:
+                action = get_input_loop("What would you like to do?", (take := "take order", "log out as crew"))
 
-            if action == take:
-                print(f"MSG: Taking order of costumer #{costumer_n + 1}.\n")
-                orders, total = {},  0
+                if action == take:
+                    print(f"MSG: Taking order of costumer #{costumer_n + 1}.\n")
+                    orders, total = {},  0
 
-                costumer_type = get_input_loop("What is the type of costumer?", ("regular", "senior citizen/PWD"))
+                    costumer_type = get_input_loop("What is the type of costumer?", ("regular", "senior citizen/PWD"))
 
-                is_ordering = True
-                in_confirmation = False
+                    is_ordering = True
+                    in_confirmation = False
 
-                while is_ordering:
-                    course = get_input_loop("What course would the costumer like to go to?", menu.keys())
+                    while is_ordering:
+                        course = get_input_loop("What course would the costumer like to go to?", menu.keys())
 
-                    if len(menu[course]) == 0:
-                        print(f"Sorry, no {course} dishes yet.")
-                        continue
+                        if len(menu[course]) == 0:
+                            print(f"Sorry, no {course} dishes yet.")
+                            continue
 
-                    in_course = True
-                    while in_course:
-                        choice = get_input_loop(f"What {course} would the costumer like to order?",
-                                                (*(f"{item} - ${price}" for item, price in menu[course].items()),
-                                                 choose_course := "choose another course") )
+                        in_course = True
+                        while in_course:
+                            choice = get_input_loop(f"What {course} would the costumer like to order?",
+                                                    (*(f"{item} - ${price}" for item, price in menu[course].items()),
+                                                    choose_course := "choose another course") )
 
-                        if choice == choose_course:
+                            if choice == choose_course:
+                                break
+
+                            order, price = choice.split(" - $")
+                            amount = get_num_loop(f"Amount of {order}: ", numtype="int", nl=False)
+                            price = float(price)
+
+                            if amount <= 0:
+                                print("Invalid amount!")
+                                continue
+                            elif order in orders:
+                                print(f"MSG: Added {amount} to {order}.\n")
+                                orders[order][1] += amount
+                            else:
+                                print(f"MSG: Costumer ordered {order} x {amount}.\n")
+                                orders[order] = [price, amount]
+
+                            total += price * amount
+
+                            # end order prompt
+                            if not in_confirmation:
+                                order_again = get_input_loop("Does the costumer want to order another item?", ("yes", "no"))
+                            if order_again == "yes":
+                                continue
+
+                            #* confirmation prompt loop
+                            is_confirmed = False
+                            while not is_confirmed:
+                                print("Ordered:")
+                                for item in orders:
+                                    print(f"> {item}: ${orders[item][0]} x {orders[item][1]}")
+                                print(f"Total: ${total}\n")
+
+                                confirm = get_input_loop("Confirm order?",
+                                                         ("yes, confirm order",
+                                                          edit := "No, edit amount",
+                                                          add := "No, add item",
+                                                          remove := "No, remove order",
+                                                          cancel_order := "Actually, cancel the order"))
+
+                                choices = (*orders, cancel := "cancel")
+
+                                if confirm == edit:
+                                    item_to_edit = get_input_loop("Which would you like to edit the amount of?", choices)
+                                    if item_to_edit == cancel:
+                                        print("MSG: Cancelling order edit...\n")
+                                        continue
+
+                                    while True:
+                                        new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
+                                        if new_amount < 0:
+                                            print("MSG: Invalid amount.")
+                                        elif new_amount == 0:
+                                            print("MSG: Consider removing the order.")
+                                        else:
+                                            break
+
+                                    total += orders[item_to_edit][0] * new_amount - orders[item_to_edit][1]
+                                    orders[item_to_edit][1] = new_amount
+                                    print(f"MSG: Changed {item_to_edit}'s amount to {new_amount}.\n")
+
+                                elif confirm == remove:
+                                    to_remove = get_input_loop("Which order would you like to remove?", choices)
+                                    if to_remove == cancel:
+                                        print("MSG: Cancelling order deletion...\n")
+                                        continue
+
+                                    if not len(orders) == 1:
+                                        print("Consider CANCELLING the order.")
+                                        continue
+
+                                    del_price, del_am = orders.pop(to_remove)
+                                    total -= del_price * del_am
+
+                                elif confirm == add:
+                                    in_confirmation = True
+                                    break
+
+                                elif confirm == cancel_order:
+                                    confirm_cancel = get_input_loop("Are you sure want to cancel the whole order?", ("yes", "no"))
+                                    if confirm_cancel == "yes":
+                                        print("Cancelling order...")
+                                        is_ordering = in_course = in_confirmation = False
+                                        break
+                                    else:
+                                        continue
+
+                                else:
+                                    is_confirmed = True
+                                    in_course = False
+                                    break
+
+                        if is_ordering:
+                            #* START receipt
+                            s, c = 32, '.'
+                            print("=" * s * 2)
+                            print("ITEMS ORDERED:")
+                            for item in orders:
+                                    print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
+
+                            print("")
+                            print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
+
+                            if costumer_type == "senior citizen/PWD":
+                                print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
+                                total = total + (total * 0.2)
+
+                            paid = False
+                            while not paid:
+                                print(f"MSG: Total amount to pay is ${total}")
+                                payment = get_num_loop("PAYMENT: $")
+                                if payment < total:
+                                    print("MSG: Insufficient payment.")
+                                    continue
+                                else:
+                                    paid = True
+
+                            print('BILL:'.ljust(s, c) + f"${total}".rjust(s, c))
+                            print("CHANGE:".ljust(s, c) + f"${payment - total}".rjust(s, c))
+                            print("THANKS FOR COMING IN BIG EGG.")
+                            print("=" * s * 2 + "\n")
+                            #* END receipt
+
+                            costumer_n += 1
                             break
 
-                        order, price = choice.split(" - $")
-                        amount = get_num_loop(f"Amount of {order}: ", numtype="int", nl=False)
-                        price = float(price)
-
-                        if amount <= 0:
-                            print("Invalid amount!")
-                            continue
-                        elif order in orders:
-                            print(f"MSG: Added {amount} to {order}.\n")
-                            orders[order][1] += amount
-                        else:
-                            print(f"MSG: Costumer ordered {order} x {amount}.\n")
-                            orders[order] = [price, amount]
-
-                        total += price * amount
-
-                        # end order prompt
-                        if not in_confirmation:
-                            order_again = get_input_loop("Does the costumer want to order another item?", ("yes", "no"))
-                        if order_again == "yes":
-                            continue
-
-                        #* confirmation prompt loop
-                        is_confirmed = False
-                        while not is_confirmed:
-                            print("Ordered:")
-                            for item in orders:
-                                print(f"> {item}: ${orders[item][0]} x {orders[item][1]}")
-                            print(f"Total: ${total}\n")
-
-                            confirm = get_input_loop("Confirm order?",
-                                                    ("yes, confirm order", edit := "No, edit amount",
-                                                        add := "No, add item",
-                                                        remove := "No, remove order",
-                                                        cancel_order := "Actually, cancel the order"))
-
-                            choices = (*orders, cancel := "cancel")
-
-                            if confirm == edit:
-                                item_to_edit = get_input_loop("Which would you like to edit the amount of?", choices)
-                                if item_to_edit == cancel:
-                                    print("MSG: Cancelling order edit...\n")
-                                    continue
-
-                                while True:
-                                    new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
-                                    if new_amount < 0:
-                                        print("MSG: Invalid amount.")
-                                    elif new_amount == 0:
-                                        print("MSG: Consider removing the order.")
-                                    else:
-                                        break
-
-                                total += orders[item_to_edit][0] * new_amount - orders[item_to_edit][1]
-                                orders[item_to_edit][1] = new_amount
-                                print(f"MSG: Changed {item_to_edit}'s amount to {new_amount}.\n")
-
-                            elif confirm == remove:
-                                to_remove = get_input_loop("Which order would you like to remove?", choices)
-                                if to_remove == cancel:
-                                    print("MSG: Cancelling order deletion...\n")
-                                    continue
-
-                                if not len(orders) == 1:
-                                    print("Consider CANCELLING the order.")
-                                    continue
-
-                                del_price, del_am = orders.pop(to_remove)
-                                total -= del_price * del_am
-
-                            elif confirm == add:
-                                in_confirmation = True
-                                break
-
-                            elif confirm == cancel_order:
-                                confirm_cancel = get_input_loop("Are you sure want to cancel the whole order?", ("yes", "no"))
-                                if confirm_cancel == "yes":
-                                    print("Cancelling order...")
-                                    is_ordering = in_course = in_confirmation = False
-                                    break
-                                else:
-                                    continue
-
-                            else:
-                                is_confirmed = True
-                                in_course = False
-                                break
-
-                    if is_ordering:
-                        #* START receipt
-                        s, c = 32, '.'
-                        print("=" * s * 2)
-                        print("ITEMS ORDERED:")
-                        for item in orders:
-                                print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
-
-                        print("")
-                        print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
-
-                        if costumer_type == "senior citizen/PWD":
-                            print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
-                            total = total + (total * 0.2)
-
-                        paid = False
-                        while not paid:
-                            print(f"MSG: Total amount to pay is ${total}")
-                            payment = get_num_loop("PAYMENT: $")
-                            if payment < total:
-                                print("MSG: Insufficient payment.")
-                                continue
-                            else:
-                                paid = True
-
-                        print('BILL:'.ljust(s, c) + f"${total}".rjust(s, c))
-                        print("CHANGE:".ljust(s, c) + f"${payment - total}".rjust(s, c))
-                        print("THANKS FOR COMING IN BIG EGG.")
-                        print("=" * s * 2 + "\n")
-                        #* END receipt
-
-                        costumer_n += 1
-                        break
-
-            else:
-                mode = None
-                break
-    #* END crew interface
+                else:
+                    mode = None
+                    break
+        #* END crew interface
 
         else:
             print("MSG: See you again soon!")
@@ -353,23 +355,27 @@ def get_input_loop(prompt, returnVals, nl=True):
             continue
     if nl:
         print("")
-
     return list(returnVals)[index-1]
 
 
 def get_num_loop(prompt: str, numtype="float", nl=True) -> float|int:
+    print(numtype)
     while True:
         try:
             inp = input("PROMPT: " + prompt)
             num = float(inp) if numtype == "float" else int(inp)
-            if nl:
-                print("")
-            return num
+            break
         except ValueError:
             print("Invalid input. Must be numerical.\n")
             continue
-
+    if nl:
+        print("")
+    return num
 
 
 if __name__ == "__main__":
-    main()
+    print("Welcome to Big Egg's Management Application!")
+    # main()
+    get_num_loop("Test", numtype="float")
+    get_num_loop("Test", numtype="int")
+    string = get_num_loop("Test", numtype="str")
