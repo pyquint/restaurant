@@ -6,6 +6,9 @@
 +---------------------------------------+
 """
 
+import json
+
+
 # Yummy spaghetti code.
 # Trying to (mostly) only use if-statements, loops, built-in functions and class methods.
 
@@ -36,6 +39,7 @@ def menu_is_empty() -> bool:
 
 
 def main():
+    global menu
     costumer_n = 0
 
     while True:
@@ -49,7 +53,8 @@ def main():
             while is_chef:
                 action = get_input_loop("What would you like to do?",
                                         (edit := "edit the menu",
-                                         load := "import menu from file",
+                                         load := "import menu from JSON",
+                                         save := "save  menu as JSON",
                                          see := "see current menu",
                                          "log out as chef"))
 
@@ -135,14 +140,21 @@ def main():
                                 break
 
                 elif action == load:
+                    # TODO JSON file chekcing
                     try:
-                        filename = input("PROMPT: Input file directory: ")
-                        # TODO JSON file handling
+                        filename = input("PROMPT: Input file directory, without leading and closing quoation marks:\n")
+                        with open(filename, 'r') as f:
+                            loaded_menu = json.load(f)
+                            if loaded_menu.keys() != menu.keys():
+                                print("Invalid JSON. Must have the same 5 courses.")
+                                continue
+                            menu = loaded_menu
                     except FileNotFoundError:
                         print(f"File {filename} is not found!")
-                        continue
-                    finally:
-                        continue
+
+                elif action == save:
+                    # TODO JSON file output
+                    ...
 
                 elif action == see:
                     items = retrieve_menu_items(values=True)
