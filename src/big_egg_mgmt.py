@@ -278,6 +278,7 @@ def main():
 
                                 elif confirm == add:
                                     in_confirmation = True
+                                    in_course = False
                                     break
 
                                 elif confirm == cancel_order:
@@ -294,7 +295,7 @@ def main():
                                     in_course = False
                                     break
 
-                            if is_ordering:
+                            if is_ordering and not in_confirmation:
                                 #* START receipt
                                 s, c = 32, '.'
                                 print("=" * s * 2)
