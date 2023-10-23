@@ -294,39 +294,39 @@ def main():
                                     in_course = False
                                     break
 
-                        if is_ordering:
-                            #* START receipt
-                            s, c = 32, '.'
-                            print("=" * s * 2)
-                            print("ITEMS ORDERED:")
-                            for item in orders:
-                                    print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
+                            if is_ordering:
+                                #* START receipt
+                                s, c = 32, '.'
+                                print("=" * s * 2)
+                                print("ITEMS ORDERED:")
+                                for item in orders:
+                                        print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
 
-                            print("")
-                            print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
+                                print("")
+                                print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
 
-                            if costumer_type == "senior citizen/PWD":
-                                print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
-                                total = total + (total * 0.2)
+                                if costumer_type == "senior citizen/PWD":
+                                    print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
+                                    total = total + (total * 0.2)
 
-                            paid = False
-                            while not paid:
-                                print(f"MSG: Total amount to pay is ${total}")
-                                payment = get_num_loop("PAYMENT: $")
-                                if payment < total:
-                                    print("MSG: Insufficient payment.")
-                                    continue
-                                else:
-                                    paid = True
+                                paid = False
+                                while not paid:
+                                    print(f"MSG: Total amount to pay is ${total}")
+                                    payment = get_num_loop("PAYMENT: $")
+                                    if payment < total:
+                                        print("MSG: Insufficient payment.")
+                                        continue
+                                    else:
+                                        paid = True
 
-                            print('BILL:'.ljust(s, c) + f"${total}".rjust(s, c))
-                            print("CHANGE:".ljust(s, c) + f"${payment - total}".rjust(s, c))
-                            print("THANKS FOR COMING IN BIG EGG.")
-                            print("=" * s * 2 + "\n")
-                            #* END receipt
+                                print('BILL:'.ljust(s, c) + f"${total}".rjust(s, c))
+                                print("CHANGE:".ljust(s, c) + f"${payment - total}".rjust(s, c))
+                                print("THANKS FOR COMING IN BIG EGG.")
+                                print("=" * s * 2 + "\n")
+                                #* END receipt
 
-                            costumer_n += 1
-                            break
+                                costumer_n += 1
+                                break
 
                 else:
                     mode = None
@@ -359,7 +359,6 @@ def get_input_loop(prompt, returnVals, nl=True):
 
 
 def get_num_loop(prompt: str, numtype="float", nl=True) -> float|int:
-    print(numtype)
     while True:
         try:
             inp = input("PROMPT: " + prompt)
