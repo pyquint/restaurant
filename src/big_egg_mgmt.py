@@ -327,6 +327,7 @@ def main():
                                 #* END receipt
 
                                 costumer_n += 1
+                                is_ordering = False
                                 break
 
                 else:
