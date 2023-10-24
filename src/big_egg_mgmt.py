@@ -6,20 +6,19 @@
 +---------------------------------------+
 """
 
-import os
 import json
-
+import os
 
 # Yummy spaghetti code.
 # Trying to (mostly) only use if-statements, loops, built-in functions and class methods.
 
 # Items here are for testing purposes only. Will be removed after testing period.
-menu : dict[str: int]  = {
+menu : dict[str: dict[str: int]]  = {
     "appetizer": {"PEA": 1},
     "main": {"BEEF STEW": 100, "SOUP #5": 5},
     "side": {"FRIES": 5},
     "dessert": {"PIE": 12.5},
-    "beverages and drinks": {"COKE ZERO LARGE": 14},
+    "beverage and drink": {"COKE ZERO LARGE": 14},
     }
 
 
@@ -36,7 +35,7 @@ def retrieve_menu_items(values: bool = False):
 
 
 def menu_is_empty() -> bool:
-    return len(retrieve_menu_items()) == 0
+    return not tuple(retrieve_menu_items())
 
 
 def main():
@@ -343,7 +342,6 @@ def main():
                                         print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
 
                                 print("")
-                                print('TOTAL:'.ljust(s, c) + f"${total}".rjust(s, c))
 
                                 if customer_type == "senior citizen/PWD":
                                     print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
@@ -376,6 +374,7 @@ def main():
 
         else:
             print("MSG: See you again soon!")
+            break
 
 
 def get_input_loop(prompt, returnVals, nl=True):
