@@ -13,7 +13,7 @@ import os
 # Trying to (mostly) only use if-statements, loops, built-in functions and class methods.
 
 # Items here are for testing purposes only. Will be removed after testing period.
-menu : dict[str: dict[str: int]]  = {
+menu : dict[str, dict[str, float|int]]  = {
     "appetizer": {"PEA": 1},
     "main": {"BEEF STEW": 100, "SOUP #5": 5},
     "side": {"FRIES": 5},
@@ -22,7 +22,7 @@ menu : dict[str: dict[str: int]]  = {
     }
 
 
-def item_is_present(item) -> bool:
+def item_is_present(item: str) -> bool:
     return item in retrieve_menu_items()
 
 
@@ -173,13 +173,14 @@ def main():
                         with open(filename) as f:
                             loaded_menu = json.load(f)
                             if loaded_menu.keys() != menu.keys():
-                                print("Invalid JSON. Must have the same 5 courses.")
+                                print("MSG: Invalid JSON. Must have the same 5 courses.\n")
                                 continue
                             menu = loaded_menu
-                            print(f"Successfully imported {filename} as menu.\n")
+                            print(f"MSG: Successfully imported {filename} as menu.\n")
 
                     except FileNotFoundError:
-                        print(f"No such file/path '{filename}'.")
+                        print(f"MSG: No such file/path '{filename}'.\n")
+                        continue
 
                 elif action == save:
                     while True:
@@ -409,7 +410,7 @@ def main():
             return
 
 
-def get_input_loop(prompt, returnVals, nl=True, clear=True):
+def get_input_loop(prompt, returnVals: dict[str, str], nl=True, clear=True) -> str:
     if not returnVals:
         print("MSG: No choices provided.\n")
     while True:
@@ -423,14 +424,14 @@ def get_input_loop(prompt, returnVals, nl=True, clear=True):
                 raise ValueError
             break
         except ValueError:
-            if clear:
-                os.system('cls')
+            # if clear:
+            #     os.system('cls')
             print("MSG: Invalid input!\n")
             continue
     if nl:
         print("")
-    if clear:
-        os.system('cls')
+    # if clear:
+    #     os.system('cls')
     return list(returnVals)[index-1]
 
 
@@ -440,20 +441,20 @@ def get_num_loop(prompt: str, numtype="float", nl=True, clear=True, negative=Fal
             inp = input("PROMPT: " + prompt)
             num = float(inp) if numtype == "float" else int(inp)
             if not negative and num < 0:
-                if clear:
-                    os.system('cls')
+                # if clear:
+                #     os.system('cls')
                 print("MSG: Invalid input. Must be positive.\n")
                 continue
             break
         except ValueError:
-            if clear:
-                os.system('cls')
+            # if clear:
+            #     os.system('cls')
             print("MSG: Invalid input. Must be numerical.\n")
             continue
     if nl:
         print("")
-    if clear:
-        os.system('cls')
+    # if clear:
+    #     os.system('cls')
     return num
 
 
