@@ -38,6 +38,15 @@ def menu_is_empty() -> bool:
     return not tuple(retrieve_menu_items())
 
 
+s, c = 32, '.'
+def lfmt(out) -> str:
+    return str(out).ljust(s, c)
+
+
+def rfmt(out) -> str:
+    return str(out).rjust(s, c)
+
+
 def main():
     global menu
     customer_n = 0
@@ -69,6 +78,7 @@ def main():
                         # course-localized modifications
                         while True:
                             # prompt the chef on what to do in the current course
+                            choices = (*menu[course], "cancel")
                             empty_menu = menu_is_empty()
                             course_action = get_input_loop(f"Action for the {course.upper()} course.",
                                                         (add := "add item",
@@ -79,8 +89,14 @@ def main():
                                                          "log out as chef"))
 
                             if course_action == add:
-                                item = input("PROMPT: Please specify the name of the item: ")
-                                if item_is_present(item):
+                                item = input("PROMPT: Please specify the name of the item (enter 1 to cancel): ")
+                                if not item:
+                                    print("MSG: Invalid name for an item. Must have a character.\n")
+                                    continue
+                                elif item == "1":
+                                    print("MSG: Cancel adding...\n")
+                                    continue
+                                elif item_is_present(item):
                                     print(f"\nMSG: {item} is already in the menu.\n")
                                 else:
                                     if course == "beverages and drinks":
@@ -95,7 +111,10 @@ def main():
                                     print(f"MSG: No {course} item to edit yet!\n")
                                     continue
 
-                                item_to_edit = get_input_loop("Which item would you like to edit?", menu[course])
+                                item_to_edit = get_input_loop("Which item would you like to edit? (enter 1 to cancel):", choices)
+                                if item_to_edit == "cancel":
+                                    print("MSG: Cancelling edit...\n")
+                                    continue
                                 property_to_edit = get_input_loop("What would you like to change?", ("name", "price"))
 
                                 if property_to_edit == "name":
@@ -115,7 +134,9 @@ def main():
                                     print(f"MSG: No {course} item to delete yet!\n")
                                     continue
 
-                                to_delete = get_input_loop("Select which item you want to remove:", menu[course])
+                                to_delete = get_input_loop("Select which item you want to remove (enter 1 to cancel):", choices)
+                                if to_delete == "cancel":
+                                    print("MSG: Cancelling delete...\n")
                                 confirm = get_input_loop(f"Are you sure you want to delete {to_delete}? (There is no undoing this.)", ("yes", "no"))
 
                                 if confirm == "yes":
@@ -144,9 +165,10 @@ def main():
 
                 elif action == load:
                     try:
-                        filename = input("PROMPT: File path:\n")
-                        if not os.path.exists(filename):
-                            print(f"No such file/path '{filename}'.")
+                        filename = input("PROMPT: File path (enter 1 to cancel):\n")
+                        if filename == "1":
+                            print("MSG: Cancelling import...\n")
+                            continue
 
                         with open(filename) as f:
                             loaded_menu = json.load(f)
@@ -157,11 +179,14 @@ def main():
                             print(f"Successfully imported {filename} as menu.\n")
 
                     except FileNotFoundError:
-                        print(f"File {filename} is not found!")
+                        print(f"No such file/path '{filename}'.")
 
                 elif action == save:
                     while True:
-                        output = input("PROMPT: Name of save file (end in .json): ")
+                        output = input("PROMPT: Name of save file (end in .json) (enter 1 to cancel): ")
+                        if output == "1":
+                            print("MSG: Cancelling save...\n")
+                            continue
                         if not output.lower().endswith(".json"):
                             print("MSG: Must end the file with .json.\n")
                             continue
@@ -334,32 +359,40 @@ def main():
                                     break
 
                             if is_ordering and not in_confirmation:
-                                #* START receipt
-                                s, c = 32, '.'
-                                print("=" * s * 2)
-                                print("ITEMS ORDERED:")
-                                for item in orders:
-                                        print(item.ljust(s, c) + f"${orders[item][0]} x {orders[item][1]}".rjust(s, c))
-
-                                print("")
-
+                                bill = total
+                                #* payment
                                 if customer_type == "senior citizen/PWD":
-                                    print("DISCOUNT:".ljust(s, c) + "APPLICABLE 20%".rjust(s, c))
-                                    total -= total * 0.2
+                                    applicable = "20%"
+                                    bill = total - total * 0.2
+                                else:
+                                    applicable = "NONE"
 
                                 paid = False
                                 while not paid:
-                                    print(f"MSG: Total amount to pay is ${total}")
-                                    payment = get_num_loop("PAYMENT: $")
+                                    print(f"MSG: Subtotal: ${total}")
+                                    print(f"MSG: Discounted price: ${bill}")
+                                    payment = get_num_loop("Payment: $")
                                     if payment < total:
                                         print("MSG: Insufficient payment.")
                                         continue
-                                    else:
-                                        paid = True
+                                    break
 
-                                print('BILL:'.ljust(s, c) + f"${total}".rjust(s, c))
-                                print("CHANGE:".ljust(s, c) + f"${payment - total}".rjust(s, c))
-                                print("THANKS FOR COMING IN BIG EGG.")
+                                #* START receipt
+                                print("=" * s * 2)
+                                print("BIG EGG RESTAURANT GROUP".center(s*2))
+                                print("JAMBO JAMBO STREET, LOS ANGELES, MARIKINA".center(s*2), end="\n\n")
+                                print("ITEMS ORDERED:")
+                                for item in orders:
+                                        price = (p := orders[item][0]) * (a := orders[item][1])
+                                        print(lfmt("> " + item) + rfmt(f"${p} QTY {a} ${price}"))
+                                print("~" * s * 2, end="\n\n")
+
+                                print(lfmt("SUBTOTAL:") + rfmt(f"${total}"), end="\n\n")
+                                print(lfmt("APPLICABLE DISCOUNT:") + rfmt(applicable))
+                                print(lfmt("AMOUNT DUE:") + rfmt(f"${bill}"), end="\n\n")
+                                print(lfmt("CASH PAYMENT:") + rfmt(f"${payment}"))
+                                print(lfmt("CHANGE:") + rfmt(f"${payment - bill}"), end="\n\n")
+                                print("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!".center(s*2, c))
                                 print("=" * s * 2 + "\n")
                                 #* END receipt
 
@@ -398,11 +431,14 @@ def get_input_loop(prompt, returnVals, nl=True):
     return list(returnVals)[index-1]
 
 
-def get_num_loop(prompt: str, numtype="float", nl=True) -> float|int:
+def get_num_loop(prompt: str, numtype="float", nl=True, negative=False) -> float|int:
     while True:
         try:
             inp = input("PROMPT: " + prompt)
             num = float(inp) if numtype == "float" else int(inp)
+            if not negative and num < 0:
+                print("Invalid input. Must be positive")
+                continue
             break
         except ValueError:
             print("Invalid input. Must be numerical.\n")
