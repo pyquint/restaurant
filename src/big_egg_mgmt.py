@@ -38,7 +38,7 @@ def menu_is_empty() -> bool:
     return not tuple(retrieve_menu_items())
 
 
-s, c = 32, '.'
+s, c = 32, ' '
 def lfmt(out) -> str:
     return str(out).ljust(s, c)
 
@@ -52,7 +52,7 @@ def main():
     customer_n = 0
 
     while True:
-        mode = get_input_loop("Who are you? Are you the chef or a crew?", ("chef", "crew", "exit restaurant"))
+        mode = get_input_loop("Who are you? Are you the chef or crew?", ("chef", "crew", "exit restaurant"))
 
         #* START chef interface
         if mode == "chef":
@@ -277,7 +277,7 @@ def main():
                                 print(f"MSG: Added {amount} to {order}.\n")
                                 orders[order][1] += amount
                             else:
-                                print(f"MSG: customer ordered {order} x {amount}.\n")
+                                print(lfmt(f"MSG: Customer ordered\t\t{order} x {amount}.\n"))
                                 orders[order] = [price, amount]
 
                             total += price * amount
@@ -298,11 +298,11 @@ def main():
                                 print(f"Total: ${total}\n")
 
                                 confirm = get_input_loop("Confirm order?",
-                                                         ("yes, confirm order",
+                                                         ("yes, confirm",
                                                           edit := "No, edit amount",
                                                           add := "No, add item",
                                                           remove := "No, remove order",
-                                                          cancel_order := "Actually, cancel the order"))
+                                                          cancel_order := "cancel order"))
 
                                 choices = (*orders, cancel := "cancel")
 
@@ -311,19 +311,19 @@ def main():
                                     if item_to_edit == cancel:
                                         print("MSG: Cancelling order edit...\n")
                                         continue
-
                                     while True:
                                         new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
                                         if new_amount < 0:
                                             print("MSG: Invalid amount.\n")
                                         elif new_amount == 0:
                                             print("MSG: Consider REMOVING the order.\n")
-                                        else:
                                             break
-
-                                    total += orders[item_to_edit][0] * (new_amount - orders[item_to_edit][1])
-                                    orders[item_to_edit][1] = new_amount
-                                    print(f"MSG: Changed {item_to_edit}'s amount to {new_amount}.\n")
+                                        else:
+                                            old_amount = orders[item_to_edit][1]
+                                            total += orders[item_to_edit][0] * (new_amount - old_amount)
+                                            orders[item_to_edit][1] = new_amount
+                                            print(f"MSG: Changed {item_to_edit}'s amount from {old_amount} to {new_amount}.\n")
+                                            break
 
                                 elif confirm == remove:
                                     to_remove = get_input_loop("Which order would you like to remove?", choices)
@@ -347,7 +347,7 @@ def main():
                                 elif confirm == cancel_order:
                                     confirm_cancel = get_input_loop("Are you sure want to cancel the whole order?", ("yes", "no"))
                                     if confirm_cancel == "yes":
-                                        print(f"Costumer #{customer_n + 1} cancelled their order.\n")
+                                        print(f"Customer #{customer_n + 1} cancelled their order.\n")
                                         is_ordering = in_course = in_confirmation = False
                                         break
                                     else:
@@ -369,9 +369,9 @@ def main():
 
                                 paid = False
                                 while not paid:
-                                    print(f"MSG: Subtotal: ${total}")
-                                    print(f"MSG: Discounted price: ${bill}")
-                                    payment = get_num_loop("Payment: $")
+                                    print(lfmt("Subtotal:") + rfmt(f"${total}"))
+                                    print(lfmt("Discounted price:") + rfmt(f"${bill}"))
+                                    payment = get_num_loop("CUSTOMER PAYMENT: $")
                                     if payment < total:
                                         print("MSG: Insufficient payment.")
                                         continue
@@ -406,48 +406,58 @@ def main():
         #* END crew interface
 
         else:
-            print("MSG: See you again soon!")
-            break
+            return
 
 
-def get_input_loop(prompt, returnVals, nl=True):
+def get_input_loop(prompt, returnVals, nl=True, clear=True):
     if not returnVals:
-        raise ValueError("Empty choice. Nothing to print.")
+        print("MSG: No choices provided.\n")
     while True:
         print("PROMPT:", prompt)
         for i, choice in enumerate(returnVals):
             if choice:
-                print(f"{i+1}: {choice.upper()}")
+                print(f"[{i+1}] {choice.upper()}")
         try:
             index = int(input("Enter integer: "))
             if 0 <= index > len(returnVals):
                 raise ValueError
             break
         except ValueError:
-            print("Invalid input!\n")
+            if clear:
+                os.system('cls')
+            print("MSG: Invalid input!\n")
             continue
     if nl:
         print("")
+    if clear:
+        os.system('cls')
     return list(returnVals)[index-1]
 
 
-def get_num_loop(prompt: str, numtype="float", nl=True, negative=False) -> float|int:
+def get_num_loop(prompt: str, numtype="float", nl=True, clear=True, negative=False) -> float|int:
     while True:
         try:
             inp = input("PROMPT: " + prompt)
             num = float(inp) if numtype == "float" else int(inp)
             if not negative and num < 0:
-                print("Invalid input. Must be positive")
+                if clear:
+                    os.system('cls')
+                print("MSG: Invalid input. Must be positive.\n")
                 continue
             break
         except ValueError:
-            print("Invalid input. Must be numerical.\n")
+            if clear:
+                os.system('cls')
+            print("MSG: Invalid input. Must be numerical.\n")
             continue
     if nl:
         print("")
+    if clear:
+        os.system('cls')
     return num
 
 
 if __name__ == "__main__":
-    print("Welcome to Big Egg's Management Application!\n")
+    print(" Big Egg MMS (Menu Management System) ".center(s*2, "-"), end="\n\n")
     main()
+    print(" See you again soon! ".center(s*2, "-"), end="\n\n")
