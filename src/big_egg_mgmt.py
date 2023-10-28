@@ -159,7 +159,7 @@ def main():
                                     continue
                                 for item, price in course_items.items():
                                     print(f"> '{item.title()}': ${price:,g}")
-                                print("")
+                                print()
 
                             elif course_action == change_course:
                                 break
@@ -228,7 +228,7 @@ def main():
                             print(f"{course.upper()} items:")
                             for item, price in menu[course].items():
                                 print(f"> {item}: ${price:,g}")
-                            print("")
+                            print()
 
                 elif action == clear:
                     print("WARN: YOU ARE ABOUT TO DELETE THE WHOLE MENU!")
@@ -266,7 +266,7 @@ def main():
                 print(f"{course.upper()}:")
                 for item, price in menu[course].items():
                     print(f"> {item} - ${price:,g}")
-                print("")
+                print()
 
             while True:
                 action = get_choice_loop("What would you like to do?", (take := "take order", "log out as crew"))
@@ -333,20 +333,22 @@ def main():
                                     to_confirm = True
                             in_course = False
 
-                            bill = total
-                            if customer_type == "senior citizen/PWD":
-                                discount = 0.2
-                                bill = total - total * discount
-                            else:
-                                discount = 0
-
                         #* confirmation prompt loop
+                        bill = total
+                        if customer_type == "senior citizen/PWD":
+                            discount = 0.2
+                            bill = total - total * discount
+                        else:
+                            discount = 0
                         while to_confirm:
                             print("Ordered items:")
                             for item in orders:
                                 print(f"> {item}: ${orders[item][0]:,g} x {orders[item][1]:,g}")
                             print(f"\nSubtotal: ${total:,g}")
-                            print(f"Discounted price: ${bill:,g}\n")
+                            if discount:
+                                print(f"Discounted price: ${bill:,g}\n")
+                            else:
+                                print()
 
                             confirm = get_choice_loop("Confirm order?",
                                                       ("yes, confirm",
@@ -502,7 +504,7 @@ def get_choice_loop(prompt: str, choices, prefix : str = "PROMPT: ", suffix: str
             print(f"MSG: Choice {index} is out of bounds.\n")
             continue
     if nl:
-        print("")
+        print()
     if clear:
         clear_text()
     return chosen
@@ -536,7 +538,7 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
             print(f"MSG: Invalid input {inp}.\n")
             continue
     if nl:
-        print("")
+        print()
     if clear:
         clear_text()
     return num
