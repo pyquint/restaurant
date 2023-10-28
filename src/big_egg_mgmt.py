@@ -284,8 +284,12 @@ def main():
                         course = get_choice_loop("What course would the customer like to go to?", (*menu, "cancel order"))
 
                         if course == "cancel order":
-                            print("MSG: Customer cancelled their order...\n")
-                            break
+                            final_confirm = get_choice_loop("Cancel the whole order?", yesno)
+                            if final_confirm == "yes":
+                                print(f"MSG: Customer #{customer_n+1} cancelled their order.\n")
+                                break
+                            else:
+                                continue
 
                         course_items = menu[course]
 
@@ -338,7 +342,7 @@ def main():
                                                          ("yes, confirm",
                                                           edit := "No, edit amount",
                                                           add := "No, add item",
-                                                          remove := "No, remove order",
+                                                          remove := "No, remove item",
                                                           cancel_order := "cancel order"))
 
                                 choices = (*orders, cancel := "cancel")
@@ -408,7 +412,7 @@ def main():
                                     print(lfmt("Subtotal:") + f"${total:,g}")
                                     if discountable:
                                         print(lfmt("Discounted price:") + f"${bill:,g}", end="\n\n")
-                                    payment = get_num_loop(lfmt("CUSTOMER PAYMENT:"), prefix="", suffix="$")
+                                    payment = get_num_loop(lfmt("CUSTOMER PAYMENT:"), prefix="", suffix="$", clear=False)
                                     if payment < bill:
                                         print("MSG: Insufficient payment.\n")
                                         continue
