@@ -480,7 +480,9 @@ def get_choice_loop(prompt: str, choices, prefix : str = "PROMPT: ", suffix: str
                 print(f"MSG: Choice '{inp}' is invalid.\n")
             continue
         except IndexError:
-            print(f"MSG: Choice {index} is out of bounds.")
+            if clear:
+                clear_text()
+            print(f"MSG: Choice {index} is out of bounds.\n")
             continue
     if nl:
         print("")
