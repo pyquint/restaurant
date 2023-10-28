@@ -60,7 +60,9 @@ def main():
             is_chef = True
             print("MSG: Welcome, Chef!\n")
 
+
             while is_chef:
+                items = retrieve_menu_items(values=True)
                 action = get_choice_loop("What would you like to do?",
                                         (edit := "edit the menu",
                                          load := "import menu from JSON",
@@ -151,10 +153,10 @@ def main():
 
                             elif course_action == display:
                                 print(f"MSG: Displaying {course} items...")
-                                if not items:
+                                if not course_items:
                                     print(f"MSG: No {course} yet.\n")
                                     continue
-                                for item, price in course.items():
+                                for item, price in course_items.items():
                                     print(f"> '{item.title()}': ${price:,g}")
                                 print("")
 
@@ -228,7 +230,7 @@ def main():
                     if confirm == "yes":
                         final_confirm = get_choice_loop("DELETE THE WHOLE MENU?", yesno)
                         if final_confirm == "yes":
-                            print("MSG: CLEARING MENU...")
+                            print("MSG: CLEARING MENU...\n")
                             for course in menu:
                                 menu[course] = {}
                             print("MSG: The menu is now empty.\n")
@@ -462,20 +464,29 @@ def get_choice_loop(prompt: str, choices, prefix : str = "PROMPT: ", suffix: str
                 print(f"[{i+1}] {choice.upper()}")
         try:
             inp = input("\nEnter choice: ")
-            index = int(verify_string_num(inp))
-            if 0 <= index > len(choices):
-                raise ValueError
+            index = int(verify_comma_num(inp))
+            if index < 0:
+                raise IndexError
+            chosen = tuple(choices)[index-1]
             break
         except ValueError:
             if clear:
                 clear_text()
-            print(f"MSG: Choice '{inp}' is invalid.\n")
+            if not inp:
+                print("MSG: Must input an option.\n")
+            elif inp.isalpha():
+                print("MSG: Input must be the number of your choice.\n")
+            else:
+                print(f"MSG: Choice '{inp}' is invalid.\n")
+            continue
+        except IndexError:
+            print(f"MSG: Choice {index} is out of bounds.")
             continue
     if nl:
         print("")
     if clear:
         clear_text()
-    return list(choices)[index-1]
+    return chosen
 
 
 def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtype: str = "float", nl: bool = True, clear: bool = True, negative: bool = False) -> float|int:
@@ -495,7 +506,7 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     while True:
         try:
             inp = input(f"{prefix}{prompt}{suffix}")
-            vinp = verify_string_num(inp)
+            vinp = verify_comma_num(inp)
             num = float(vinp) if numtype == "float" else int(vinp)
             if not negative and num < 0:
                 raise ValueError
@@ -511,7 +522,7 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
         clear_text()
     return num
 
-def verify_string_num(num: str) -> str:
+def verify_comma_num(num: str) -> str:
     if "," in num:
         sections = num.split(",")
         l = len(sections[0])
@@ -534,4 +545,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n")
-    print(" See you again soon! ".center(s, "-"), end="\n\n")
+    print(" See you again soon! ".center(s, "-"))
