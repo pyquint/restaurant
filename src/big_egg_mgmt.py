@@ -140,9 +140,10 @@ def main():
                                     print(f"MSG: No {course} item to delete yet!\n")
                                     continue
 
-                                to_delete = get_choice_loop(f"Select which item you want to remove {cancel_msg}:", choices)
-                                if to_delete == cancel_key:
+                                to_delete = get_choice_loop("Select which item you want to remove:", choices)
+                                if to_delete == "cancel":
                                     print("MSG: Cancelling deletion...\n")
+                                    continue
                                 else:
                                     confirm = get_choice_loop(f"Are you sure you want to delete {to_delete}? (There is no undoing this.)", yesno)
                                     if confirm == "yes":
@@ -220,9 +221,14 @@ def main():
                         print("MSG: Menu is currently empty.\n")
                     else:
                         print("Displaying current menu:")
-                        for item, price in items.items():
-                            print(f"> {item}: ${price:,g}")
-                        print("")
+                        for course in menu:
+                            if not menu[course]:
+                                print(f"No {course.upper()} yet...\n")
+                                continue
+                            print(f"{course.upper()} items:")
+                            for item, price in menu[course].items():
+                                print(f"> {item}: ${price:,g}")
+                            print("")
 
                 elif action == clear:
                     print("WARN: YOU ARE ABOUT TO DELETE THE WHOLE MENU!")
@@ -275,9 +281,9 @@ def main():
                     in_confirmation = False
 
                     while is_ordering:
-                        course = get_choice_loop("What course would the customer like to go to?", (*menu, "cancel"))
+                        course = get_choice_loop("What course would the customer like to go to?", (*menu, "cancel order"))
 
-                        if course == "cancel":
+                        if course == "cancel order":
                             print("MSG: Customer cancelled their order...\n")
                             break
 
