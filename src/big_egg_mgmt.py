@@ -275,31 +275,34 @@ def main():
                     print(f"MSG: Taking order of customer #{customer_n + 1}.\n")
                     orders, total = {},  0
 
-                    customer_type = get_choice_loop("What is the type of customer?", ("regular", "senior citizen/PWD"))
+                    customer_type = get_choice_loop(f"What type of customer is customer #{customer_n + 1}?", ("regular", "senior citizen/PWD"))
 
                     is_ordering = True
-                    in_confirmation = False
+                    to_confirm = in_confirmation = to_pay = False
 
                     while is_ordering:
-                        course = get_choice_loop("What course would the customer like to go to?", (*menu, "cancel order"))
+                        course = get_choice_loop(f"What course would customer #{customer_n + 1} like to go to?",
+                                                 (*menu, "cancel adding" if in_confirmation else "cancel order"))
 
                         if course == "cancel order":
-                            final_confirm = get_choice_loop("Cancel the whole order?", yesno)
-                            if final_confirm == "yes":
-                                print(f"MSG: Customer #{customer_n+1} cancelled their order.\n")
-                                break
-                            else:
+                            confirm_cancel = get_choice_loop("Cancel the whole order?", yesno)
+                            if confirm_cancel == "yes":
+                                final_confirm = get_choice_loop("You are about to cancel the customer's oder. Are you sure?", yesno)
+                                if final_confirm == "yes":
+                                    print(f"MSG: Customer #{customer_n+1} cancelled their order.\n")
+                                    break
+                        elif course == "cancel adding":
+                            in_course = False
+                        else:
+                            course_items = menu[course]
+                            if len(course_items) == 0:
+                                print(f"Sorry, no {course} dishes yet.")
                                 continue
+                            in_course = True
 
-                        course_items = menu[course]
 
-                        if len(course_items) == 0:
-                            print(f"Sorry, no {course} dishes yet.")
-                            continue
-
-                        in_course = True
                         while in_course:
-                            choice = get_choice_loop(f"What {course} would the customer like to order?",
+                            choice = get_choice_loop(f"What {course} would customer #{customer_n + 1} like to order?",
                                                     (*(f"{item} - ${price}" for item, price in course_items.items()),
                                                     choose_course := "choose another course") )
 
@@ -325,127 +328,129 @@ def main():
 
                             # end order prompt
                             if not in_confirmation:
-                                order_again = get_choice_loop("Does the customer want to order another item?", yesno)
-                                if order_again == "yes":
-                                    in_course = False
+                                order_again = get_choice_loop(f"Does customer #{customer_n + 1} want to order another item?", yesno)
+                                if order_again == "no":
+                                    to_confirm = True
+                            in_course = False
+
+                            bill = total
+                            if customer_type == "senior citizen/PWD":
+                                discount = 0.2
+                                bill = total - total * discount
+                            else:
+                                discount = 0
+
+                        #* confirmation prompt loop
+                        while to_confirm:
+                            print("Ordered items:")
+                            for item in orders:
+                                print(f"> {item}: ${orders[item][0]:,g} x {orders[item][1]:,g}")
+                            print(f"\nSubtotal: ${total:,g}")
+                            print(f"Discounted price: ${bill:,g}\n")
+
+                            confirm = get_choice_loop("Confirm order?",
+                                                      ("yes, confirm",
+                                                       edit := "No, edit amount",
+                                                       add := "No, add item",
+                                                       remove := "No, remove item",
+                                                       cancel_order := "cancel order"))
+
+                            choices = (*orders, cancel := "cancel")
+
+                            if confirm == edit:
+                                item_to_edit = get_choice_loop("Which would you like to edit the amount of?", choices)
+                                if item_to_edit == cancel:
+                                    print("MSG: Cancelling order edit...\n")
                                     continue
-
-                            #* confirmation prompt loop
-                            is_confirmed = False
-                            while not is_confirmed:
-                                print("Ordered:")
-                                for item in orders:
-                                    print(f"> {item}: ${orders[item][0]:,g} x {orders[item][1]:,g}")
-                                print(f"Total: ${total:,g}\n")
-
-                                confirm = get_choice_loop("Confirm order?",
-                                                         ("yes, confirm",
-                                                          edit := "No, edit amount",
-                                                          add := "No, add item",
-                                                          remove := "No, remove item",
-                                                          cancel_order := "cancel order"))
-
-                                choices = (*orders, cancel := "cancel")
-
-                                if confirm == edit:
-                                    item_to_edit = get_choice_loop("Which would you like to edit the amount of?", choices)
-                                    if item_to_edit == cancel:
-                                        print("MSG: Cancelling order edit...\n")
-                                        continue
-                                    while True:
-                                        new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
-                                        if new_amount < 0:
-                                            print("MSG: Invalid amount.\n")
-                                        elif new_amount == 0:
-                                            print("MSG: Consider REMOVING the order.\n")
-                                            break
-                                        else:
-                                            old_amount = orders[item_to_edit][1]
-                                            total += orders[item_to_edit][0] * (new_amount - old_amount)
-                                            orders[item_to_edit][1] = new_amount
-                                            print(f"MSG: Changed {item_to_edit}'s amount from {old_amount:,g} to {new_amount:,g}.\n")
-                                            break
-
-                                elif confirm == remove:
-                                    to_remove = get_choice_loop("Which order would you like to remove?", choices)
-                                    if to_remove == cancel:
-                                        print("MSG: Cancelling order deletion...\n")
-                                        continue
-                                    elif len(orders) == 1:
-                                        print("Consider CANCELLING the order.\n")
-                                        continue
-                                    else:
-                                        del_price, del_am = orders.pop(to_remove)
-                                        total -= del_price * del_am
-                                        print(f"MSG: Removed {to_remove} x {del_am} from orders.")
-
-                                elif confirm == add:
-                                    in_confirmation = True
-                                    in_course = False
-                                    break
-
-                                elif confirm == cancel_order:
-                                    confirm_cancel = get_choice_loop("Are you sure want to cancel the whole order?", yesno)
-                                    if confirm_cancel == "yes":
-                                        print(f"Customer #{customer_n + 1} cancelled their order.\n")
-                                        is_ordering = in_course = in_confirmation = False
+                                while True:
+                                    new_amount = get_num_loop(f"New amount of {item_to_edit}: ", numtype="int")
+                                    if new_amount < 0:
+                                        print("MSG: Invalid amount.\n")
+                                    elif new_amount == 0:
+                                        print("MSG: Consider REMOVING the order.\n")
                                         break
                                     else:
-                                        continue
+                                        old_amount = orders[item_to_edit][1]
+                                        total += orders[item_to_edit][0] * (new_amount - old_amount)
+                                        orders[item_to_edit][1] = new_amount
+                                        print(f"MSG: Changed {item_to_edit}'s amount from {old_amount:,g} to {new_amount:,g}.\n")
+                                        break
 
+                            elif confirm == remove:
+                                to_remove = get_choice_loop("Which order would you like to remove?", choices)
+                                if to_remove == cancel:
+                                    print("MSG: Cancelling order deletion...\n")
+                                    continue
+                                elif len(orders) == 1:
+                                    print("Consider CANCELLING the order.\n")
+                                    continue
                                 else:
-                                    is_confirmed = True
-                                    in_confirmation = in_course = False
-                                    break
+                                    del_price, del_am = orders.pop(to_remove)
+                                    total -= del_price * del_am
+                                    print(f"MSG: Removed {to_remove} x {del_am} from orders.")
 
-                            if is_ordering and not in_confirmation:
-                                bill = total
-                                #* payment
-                                if discountable := customer_type == "senior citizen/PWD":
-                                    applicable = "20%"
-                                    bill = total - total * 0.2
-                                else:
-                                    applicable = "0%"
-
-                                paid = False
-                                while not paid:
-                                    print(lfmt("Subtotal:") + f"${total:,g}")
-                                    if discountable:
-                                        print(lfmt("Discounted price:") + f"${bill:,g}", end="\n\n")
-                                    payment = get_num_loop(lfmt("CUSTOMER PAYMENT:"), prefix="", suffix="$", clear=False)
-                                    if payment < bill:
-                                        print("MSG: Insufficient payment.\n")
-                                        continue
-                                    break
-
-                                #* START receipt
-                                print("=" * s)
-                                print("BIG EGG RESTAURANT GROUP".center(s))
-                                print("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA".center(s), end="\n\n")
-                                print("ITEMS ORDERED:")
-                                for item in orders:
-                                        price = (p := orders[item][0]) * (a := orders[item][1])
-                                        print(lfmt(f"> {item} - ${p:,g}") + rfmt(f"QTY x {a:,} ${price:,}"))
-                                print("~" * s)
-
-                                print(lfmt("SUBTOTAL:") + rfmt(f"${total:,}"))
-                                print(lfmt("APPLICABLE DISCOUNT:") + rfmt(applicable), end="\n\n")
-                                print(lfmt("AMOUNT DUE:") + rfmt(f"${bill:,}"))
-                                print(lfmt("CASH PAYMENT:") + rfmt(f"${payment:,}"))
-
-                                print("~" * s)
-                                print(lfmt("CHANGE:") + rfmt(f"${payment - bill:,}"), end="\n\n")
-                                print("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!".center(s, c))
-                                print("=" * s + "\n")
-                                #* END receipt
-
-                                customer_n += 1
-                                is_ordering = False
+                            elif confirm == add:
+                                in_confirmation = True
+                                in_course = False
                                 break
 
+                            elif confirm == cancel_order:
+                                confirm_cancel = get_choice_loop("Are you sure want to cancel the whole order?", yesno)
+                                if confirm_cancel == "yes":
+                                    final_confirm = get_choice_loop("You are about to cancel the customer's order. Are you sure?", yesno)
+                                    if final_confirm == "yes":
+                                        print(f"Customer #{customer_n + 1} cancelled their order.\n")
+                                        is_ordering = in_course = in_confirmation = False
+                                        to_confirm = False
+                                        break
+
+
+                            else:
+                                in_confirmation = to_confirm = False
+                                to_pay = True
+                                break
+
+                        if to_pay:
+                            #* payment
+                            while True:
+                                print(lfmt("Subtotal:") + f"${total:,g}")
+                                if discount:
+                                    print(lfmt("Discounted price:") + f"${bill:,g}", end="\n\n")
+                                payment = get_num_loop(lfmt("CUSTOMER PAYMENT:"), prefix="", suffix="$", clear=False)
+                                if payment < bill:
+                                    print("MSG: Insufficient payment.\n")
+                                    continue
+                                break
+
+                            #* START receipt
+                            print("=" * s)
+                            print("BIG EGG RESTAURANT GROUP".center(s))
+                            print("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA".center(s), end="\n\n")
+                            print(f"CUSTOMER #{customer_n + 1} ORDERED:")
+                            for item in orders:
+                                    price = (p := orders[item][0]) * (a := orders[item][1])
+                                    print(lfmt(f"> {item} - ${p:,g}") + rfmt(f"QTY x {a:,} ${price:,}"))
+                            print("~" * s)
+
+                            print(lfmt("SUBTOTAL:") + rfmt(f"${total:,}"))
+                            print(lfmt("APPLICABLE DISCOUNT:") + rfmt(f"{discount:.2%}"), end="\n\n")
+                            print(lfmt("AMOUNT DUE:") + rfmt(f"${bill:,}"))
+                            print(lfmt("CASH PAYMENT:") + rfmt(f"${payment:,}"))
+
+                            print("~" * s)
+                            print(lfmt("CHANGE:") + rfmt(f"${payment - bill:,}"), end="\n\n")
+                            print("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!".center(s, c))
+                            print("=" * s + "\n")
+                            #* END receipt
+
+                            is_ordering = False
+                            break
+
+                    customer_n += 1
                 else:
                     mode = None
                     break
+
         #* END crew interface
 
         else:
@@ -474,6 +479,8 @@ def get_choice_loop(prompt: str, choices, prefix : str = "PROMPT: ", suffix: str
                 print(f"[{i+1}] {choice.upper()}")
         try:
             inp = input("\nEnter choice: ")
+            if inp.startswith("0"):
+                raise ValueError
             index = int(verify_comma_num(inp))
             if index < 0:
                 raise IndexError
