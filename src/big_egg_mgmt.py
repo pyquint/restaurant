@@ -16,12 +16,12 @@ _program_name = "Big Egg Menu Management System™"
 
 # Items here are for testing purposes only. Will be removed after testing period.
 menu : dict[str, dict[str, float|int]]  = {
-    "appetizer": {"PEA": 1},
-    "main": {"BEEF STEW": 100, "SOUP #5": 5},
-    "side": {"FRIES": 5},
-    "dessert": {"PIE": 12.5},
-    "beverage and drink": {"COKE ZERO LARGE": 14},
-    }
+    "appetizer": {},
+    "main": {},
+    "side": {},
+    "dessert": {},
+    "beverage and drink": {},
+}
 
 
 def item_is_present(item: str) -> bool:
@@ -334,13 +334,13 @@ def main():
                             in_course = False
 
                         #* confirmation prompt loop
-                        bill = total
-                        if customer_type == "senior citizen/PWD":
-                            discount = 0.2
-                            bill = total - total * discount
-                        else:
-                            discount = 0
                         while to_confirm:
+                            bill = total
+                            if customer_type == "senior citizen/PWD":
+                                discount = 0.2
+                                bill = total - total * discount
+                            else:
+                                discount = 0
                             print("Ordered items:")
                             for item in orders:
                                 print(f"> {item}: ${orders[item][0]:,g} x {orders[item][1]:,g}")
