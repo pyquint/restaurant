@@ -18,7 +18,6 @@ filedialog_root = tk.Tk()
 filedialog_root.withdraw()
 filedialog_root.attributes("-topmost", True)
 
-# Items here are for testing purposes only. Will be removed after testing period.
 MENU: dict[str, dict[str, float | int]] = {
     "appetizer": {},
     "main": {},
@@ -30,7 +29,7 @@ MENU: dict[str, dict[str, float | int]] = {
 CUSTOMER_N = 0
 CANCEL_KEY = "`"
 CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
-YES_NO = ("yes", "no")
+YES_OR_NO = ("yes", "no")
 
 
 def get_menu_items(values: bool = False) -> tuple[str] | dict[str, int | float]:
@@ -63,6 +62,19 @@ def fmt(string: str, align: str = 'c', padding: int = 64, char: str = ' ') -> st
 
 def col_fmt(string1: str, string2: str) -> str:
     return fmt(string1, 'l') + fmt(string2, 'r')
+
+
+def confirm_action(action: str, repeat=1) -> bool:
+    to_confirm = get_choice_loop(f"ARE YOU SURE YOU WANT TO {action.upper()}?", YES_OR_NO)
+    if to_confirm == "yes":
+        for i in range(repeat-1):
+            if get_choice_loop(f"{action.upper()}?", YES_OR_NO) == "yes":
+                return True
+            else:
+                return False
+        return True
+    else:
+        return False
 
 
 def get_choice_loop(prompt: str, choices,
@@ -188,7 +200,7 @@ def run_chef_interface():
                     course_action = get_choice_loop(f"Action for the {course.upper()} course.",
                                                     (add := "add item",
                                                      edit := "edit item",
-                                                     delete := "delete item",
+                                                     remove := "remove item",
                                                      display := f"display {course} items",
                                                      change_course := "change course (back)",
                                                      "log out as chef"))
@@ -236,30 +248,28 @@ def run_chef_interface():
                                 f"Please enter the new price for {item_to_edit}: $")
                             print(f"MSG: You have changed the price of {item_to_edit} to ${new_price:,g}.\n")
 
-                    elif course_action == delete:
+                    elif course_action == remove:
                         if not course_items:
-                            print(f"MSG: No {course} item to delete yet!\n")
+                            print(f"MSG: No {course} items to remove yet!\n")
                             continue
 
-                        to_delete = get_choice_loop("Select which item you want to remove:", choices)
-                        if to_delete == "cancel":
+                        item_to_remove = get_choice_loop("Select which item you want to remove:", choices)
+                        if item_to_remove == "cancel":
                             print("MSG: Cancelling deletion...\n")
                             continue
                         else:
-                            confirm = get_choice_loop(
-                                f"Are you sure you want to delete {to_delete}? (There is no undoing this.)",
-                                YES_NO)
-                            if confirm == "yes":
-                                del MENU[course][to_delete]
-                                print(f"MSG: You have removed {to_delete} from {course}.\n")
+                            if confirm_action(f"REMOVE {item_to_remove}?"):
+                                del MENU[course][item_to_remove]
+                                print(f"MSG: You have removed {item_to_remove} from {course}.\n")
                             else:
                                 print("MSG: Cancelling deletion...\n")
 
                     elif course_action == display:
-                        print(f"MSG: Displaying {course} items...")
                         if not course_items:
                             print(f"MSG: No {course} yet.\n")
                             continue
+
+                        print(f"MSG: Displaying {course} items...")
                         for item, price in course_items.items():
                             print(f"> '{item.title()}': ${price:,g}")
                         print()
@@ -273,7 +283,7 @@ def run_chef_interface():
 
         elif action == load:
             filename = filedialog.askopenfilename(parent=filedialog_root,
-                                                  title="Import JSON menu",
+                                                  title="Import menu from JSON file",
                                                   filetypes=[("JSON files", "*.json")])
             try:
                 with open(filename) as f:
@@ -292,28 +302,17 @@ def run_chef_interface():
             if not items:
                 print("MSG: Menu is empty.\n")
                 continue
-            while True:
-                output = input("PROMPT: Name of save file (end in .json) (enter 1 to cancel):\n")
-                if output == "1":
-                    print("MSG: Cancelling save...\n")
-                    break
-                elif not output.lower().endswith(".json"):
-                    print("MSG: Must end the file with .json.\n")
-                    continue
-                else:
-                    break
-
-            xw, msg = "x", f"MSG: Created file {output}.\n"
-            if os.path.exists(output):
-                confirm_overwrite = get_choice_loop(f"File {output} exists. Overwrite?", YES_NO)
-                if confirm_overwrite == "no":
-                    print("MSG: Cancelling saving menu as JSON...\n")
-                    continue
-                xw, msg = "w", f"Overwritten {output} with current menu.\n"
-
-            with open(output, xw) as f:
-                json.dump(MENU, f)
-            print(msg)
+            file = filedialog.asksaveasfilename(parent=filedialog_root,
+                                                title="Save menu as JSON file",
+                                                defaultextension=".json",
+                                                filetypes=[("JSON file", ".json")])
+            try:
+                with open(file, 'w') as f:
+                    json.dump(MENU, f)
+            except FileNotFoundError:
+                print("MSG: Cancelling saving menu as JSON...\n")
+            else:
+                print(f"MSG: Created file {file}.\n")
 
         elif action == see:
             if not items:
@@ -331,16 +330,14 @@ def run_chef_interface():
 
         elif action == clear:
             print("WARNING: YOU ARE ABOUT TO DELETE THE WHOLE MENU!")
-            confirm = get_choice_loop("ARE YOU SURE YOU WANT TO DO THIS?", YES_NO)
-            if confirm == "yes":
-                final_confirm = get_choice_loop("DELETE THE WHOLE MENU?", YES_NO)
-                if final_confirm == "yes":
-                    print("MSG: CLEARING MENU...\n")
-                    for course in MENU:
-                        MENU[course] = {}
-                    print("MSG: The menu is now empty.\n")
-                    continue
-            print("MSG: Cancelling emptying menu...\n")
+            if confirm_action("DELETE THE MENU", 2):
+                print("MSG: CLEARING MENU...\n")
+                for course in MENU:
+                    MENU[course] = {}
+                print("MSG: The menu is now empty.\n")
+                continue
+            else:
+                print("MSG: Cancelling emptying menu...\n")
 
         else:
             print("MSG: Logging out as chef...\n")
@@ -351,12 +348,13 @@ def run_crew_interface():
     global MENU
     global CUSTOMER_N
 
-    print("MSG: Welcome, crew!\n")
     items = get_menu_items(values=True)
 
     if not items:
         print("MSG: Sorry! The menu isn't prepared yet.\n")
         return
+
+    print("MSG: Welcome, crew!\n")
 
     print("MSG: Displaying menu...")
     for course in MENU:
@@ -384,13 +382,9 @@ def run_crew_interface():
                                          (*MENU, "cancel adding" if in_confirmation else "cancel order"))
 
                 if course == "cancel order":
-                    confirm_cancel = get_choice_loop("Cancel the whole order?", YES_NO)
-                    if confirm_cancel == "yes":
-                        final_confirm = get_choice_loop(
-                            "You are about to cancel the customer's oder. Are you sure?", YES_NO)
-                        if final_confirm == "yes":
-                            print(f"MSG: Customer #{CUSTOMER_N + 1} cancelled their order.\n")
-                            break
+                    if confirm_action("Cancel the customer's order", 2):
+                        print(f"MSG: Customer #{CUSTOMER_N + 1} cancelled their order.\n")
+                        break
                 elif course == "cancel adding":
                     in_course = False
                 else:
@@ -420,7 +414,7 @@ def run_crew_interface():
                         print(f"MSG: Added {amount:,g} to {order}.\n")
                         orders[order][1] += amount
                     else:
-                        print(fmt(f"MSG: Customer ordered -> {order} (${price}) x {amount:,g}.\n", "left"))
+                        print(fmt(f"MSG: Customer ordered -> {order} (${price}) x {amount:,g}.\n", "l"))
                         orders[order] = [price, amount]
 
                     total += price * amount
@@ -428,7 +422,7 @@ def run_crew_interface():
                     # end order prompt
                     if not in_confirmation:
                         order_again = get_choice_loop(
-                            f"Does customer #{CUSTOMER_N + 1} want to order another item?", YES_NO)
+                            f"Does customer #{CUSTOMER_N + 1} want to order another item?", YES_OR_NO)
                         if order_again == "no":
                             to_confirm = True
                     in_course = False
@@ -498,10 +492,10 @@ def run_crew_interface():
                         break
 
                     elif confirm == cancel_order:
-                        confirm_cancel = get_choice_loop("Are you sure want to cancel the whole order?", YES_NO)
+                        confirm_cancel = get_choice_loop("Are you sure you want to cancel the whole order?", YES_OR_NO)
                         if confirm_cancel == "yes":
                             final_confirm = get_choice_loop(
-                                "You are about to cancel the customer's order. Are you sure?", YES_NO)
+                                "You are about to cancel the customer's order. Are you sure?", YES_OR_NO)
                             if final_confirm == "yes":
                                 print(f"Customer #{CUSTOMER_N + 1} cancelled their order.\n")
                                 in_ordering = in_course = in_confirmation = False
