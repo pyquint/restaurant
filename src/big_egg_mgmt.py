@@ -14,6 +14,13 @@ import tkinter as tk
 from tkinter import filedialog
 
 _PROGRAM_NAME = "Big Egg Menu Management System™"
+
+WIDTH = 64
+CURR = "$"
+
+CANCEL_KEY = "`"
+CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
+
 filedialog_root = tk.Tk()
 filedialog_root.withdraw()
 filedialog_root.attributes("-topmost", True)
@@ -25,12 +32,6 @@ MENU: dict[str, dict[str, float | int]] = {
     "dessert": {},
     "beverage": {},
 }
-
-CUSTOMER_N = 0
-CANCEL_KEY = "`"
-CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
-YES_OR_NO = ("yes", "no")
-WIDTH = 64
 
 
 def get_flat_menu_dict() -> dict[str, int | float]:
@@ -93,12 +94,12 @@ def confirm_action(action: str, repeat: int = 1) -> bool:
     :return: boolean True if confirm is yes else False
     """
     action = action.upper()
-    initial_reply = get_choice_loop(f"ARE YOU SURE YOU WANT TO {action}?", YES_OR_NO)
+    initial_reply = get_choice_loop(f"ARE YOU SURE YOU WANT TO {action}?", ("yes", "no"))
 
     if initial_reply == "yes":
         reply = True
         for i in range(repeat - 1):
-            if get_choice_loop(f"{action}?", YES_OR_NO) == "no":
+            if get_choice_loop(f"{action}?", ("yes", "no")) == "no":
                 reply = False
     else:
         reply = False
@@ -108,7 +109,7 @@ def confirm_action(action: str, repeat: int = 1) -> bool:
 
 def get_choice_loop(prompt: str, choices,
                     prefix: str = "PROMPT: ", suffix: str = "",
-                    nl: bool = True, clear: bool = True) -> str:
+                    nl: bool = True, clear: bool = True):
     """
     Repeatedly asks the user to enter a number representing the chosen option from an iterable of choices.
 
@@ -128,12 +129,12 @@ def get_choice_loop(prompt: str, choices,
 
         for i, option in enumerate(choices):
             if option:
-                print(f"[{i + 1}] {option.upper()}")
+                print(f"[{i + 1}] {option.upper() if isinstance(option, str) else option}")
         try:
             user_input = input("\nEnter choice: ")
             if user_input.startswith('0'):
                 raise ValueError
-            index = int(cleanup_num_with_sep(user_input))
+            index = int(user_input)
             if index < 0:
                 raise IndexError
             choice = tuple(choices)[index - 1]
@@ -176,14 +177,24 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     while True:
         try:
             user_input = input(f"{prefix}{prompt}{suffix}")
-            verified_num = cleanup_num_with_sep(user_input)
-            number = int(verified_num) if numtype == "int" else float(verified_num)
+
+            # cleans input with commas
+            if "," in user_input:
+                sections = user_input.split(",")
+                length = len(sections[0])
+                if "." in sections[-1]:
+                    sections[-1] = sections[-1].split(".")[0]
+                if (0 >= length or length > 3) or any((len(s) != 3 for s in sections[1:])):
+                    raise ValueError
+                user_input = user_input.replace(",", "")
+
+            number = int(user_input) if numtype == "int" else float(user_input)
             if not negative and number < 0:
                 raise ValueError
         except ValueError:
             if clear:
                 clear_cli()
-            print(f"MSG: Invalid input. Enter a valid {"integer" if numtype == int else "number"}\n")
+            print(f"MSG: Invalid input. Enter a valid {"integer" if numtype == "int" else "number"}\n")
         else:
             break
 
@@ -195,25 +206,6 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     return number
 
 
-def cleanup_num_with_sep(num: str) -> str:
-    """
-    Verifies and cleans string numbers with commas
-
-    :param num: string number to remove commas
-    :return: string number without commas
-    """
-    if "," in num:
-        sections = num.split(",")
-        length = len(sections[0])
-        if "." in sections[-1]:
-            sections[-1] = sections[-1].split(".")[0]
-        if (0 >= length or length > 3) or any((len(s) != 3 for s in sections[1:])):
-            raise ValueError
-        num = num.replace(",", "")
-
-    return num
-
-
 def run_chef_interface():
     global MENU
 
@@ -222,19 +214,22 @@ def run_chef_interface():
     while True:
         items = get_flat_menu_dict()
         action = get_choice_loop("What would you like to do?",
-                                 (edit := "edit the menu",
+                                 (modify := "modify the menu",
                                   load := "import menu from JSON",
                                   save := "save menu as JSON",
                                   see := "see current menu",
                                   clear := "clear menu",
                                   "log out as chef"))
 
-        if action == edit:
+        if action == modify:
             while True:
                 course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
+
                 if course == "go back":
                     break
+
                 course_items = MENU[course]
+                empty_course_msg = f"MSG: The {course} course is currently empty.\n"
 
                 # COURSE-SPECIFIC EDITING
                 while True:
@@ -244,16 +239,16 @@ def run_chef_interface():
                     choices = (*course_items, "cancel")
                     course_action = get_choice_loop(f"Action for the {course.upper()} course.",
                                                     (add := "add item",
-                                                     edit := "edit item",
+                                                     modify := "edit item",
                                                      remove := "remove item",
                                                      display := f"display {course} items",
                                                      change_course := "change course (back)",
                                                      "log out as chef"))
 
                     if course_action == add:
-                        item = input(f"PROMPT: Please specify the name of the item {CANCEL_MSG}: ")
-                        if not item:
-                            print("MSG: Invalid name for an item. Must have a character.\n")
+                        item = input(f"PROMPT: Please specify the name of the new item {CANCEL_MSG}: ")
+                        if not item or item.isspace():
+                            print("MSG: Invalid. Item name must have at least one non-whitespace character.\n")
                         elif item == CANCEL_KEY:
                             print("MSG: Cancel adding...\n")
                         elif item in items:
@@ -263,13 +258,13 @@ def run_chef_interface():
                                 size = get_choice_loop("Specify the serve size: ",
                                                        ("small", "medium", "large", "none")).upper()
                                 item = item + " " + size if size == "none" else item
-                            price = get_num_loop(f"Please specify the price for {item}: $")
+                            price = get_num_loop(f"Please specify the price for {item}: {CURR}")
                             MENU[course][item] = price
-                            print(f"MSG: Added {course} item {item} priced ${price:,g}.\n")
+                            print(f"MSG: Added {course} item {item} priced {CURR}{price:,g}.\n")
 
-                    elif course_action == edit:
+                    elif course_action == modify:
                         if not course_items:
-                            print(f"MSG: No {course} item to edit yet!\n")
+                            print(empty_course_msg)
                             continue
 
                         item_to_edit = get_choice_loop("Which item would you like to edit?:", choices)
@@ -281,21 +276,32 @@ def run_chef_interface():
                         property_to_edit = get_choice_loop("What would you like to change?", ("name", "price"))
 
                         if property_to_edit == "name":
-                            new_name = input(f"PROMPT: Please enter the new name for {item_to_edit}: ")
+                            new_name = input(f"PROMPT: Please enter the new name for {item_to_edit} {CANCEL_MSG}: ")
                             if new_name in MENU[course]:
                                 print(f"{new_name} is already in {course}!\n")
+                            elif new_name == CANCEL_KEY:
+                                print("MSG: Cancelling edit name...\n")
                             else:
                                 old_p = MENU[course].pop(item_to_edit)
                                 MENU[course][new_name] = old_p
                                 print(f"MSG: You have changed the name of {item_to_edit} to {new_name}.\n")
                         else:
-                            new_price = MENU[course][item_to_edit] = get_num_loop(
-                                f"Please enter the new price for {item_to_edit}: $")
-                            print(f"MSG: You have changed the price of {item_to_edit} to ${new_price:,g}.\n")
+                            new_price = get_num_loop(
+                                f"Please enter the new price for {item_to_edit} (enter current price to cancel): {CURR}")
+                            if new_price == MENU[course][item_to_edit]:
+                                print(f"Kept the price of {item_to_edit} at {CURR}{new_price}.\n")
+                                continue
+                            elif new_price == 0:
+                                if not confirm_action(f"Offer {item_to_edit} free of charge"):
+                                    print("MSG: Cancelling edit price...\n")
+                                    continue
+                            else:
+                                MENU[course][item_to_edit] = new_price
+                            print(f"MSG: You have changed the price of {item_to_edit} to {CURR}{new_price:,g}.\n")
 
                     elif course_action == remove:
                         if not course_items:
-                            print(f"MSG: No {course} items to remove yet!\n")
+                            print(empty_course_msg)
                             continue
 
                         item_to_remove = get_choice_loop("Select which item you want to remove:", choices)
@@ -303,7 +309,7 @@ def run_chef_interface():
                             print("MSG: Cancelling deletion...\n")
                             continue
                         else:
-                            if confirm_action(f"REMOVE {item_to_remove}?"):
+                            if confirm_action(f"REMOVE {item_to_remove}"):
                                 del MENU[course][item_to_remove]
                                 print(f"MSG: You have removed {item_to_remove} from {course}.\n")
                             else:
@@ -311,12 +317,12 @@ def run_chef_interface():
 
                     elif course_action == display:
                         if not course_items:
-                            print(f"MSG: The {course} course is currently empty.\n")
+                            print(empty_course_msg)
                             continue
 
                         print(f"MSG: Displaying {course} items...")
                         for item, price in course_items.items():
-                            print(f"> '{item.title()}': ${price:,g}")
+                            print(f"> '{item.title()}': {CURR}{price:,g}")
                         print()
 
                     elif course_action == change_course:
@@ -370,7 +376,7 @@ def run_chef_interface():
                         continue
                     print(f"{course.upper()} items:")
                     for item, price in MENU[course].items():
-                        print(f"> {item}: ${price:,g}")
+                        print(f"> {item}: {CURR}{price:,g}")
                     print()
 
         elif action == clear:
@@ -378,15 +384,15 @@ def run_chef_interface():
                 print("MSG: The menu is currently empty.\n")
                 continue
 
-            print("WARNING: YOU ARE ABOUT TO DELETE THE WHOLE MENU!")
-            if confirm_action("DELETE THE MENU", 2):
+            print("WARNING: YOU ARE ABOUT TO CLEAR THE WHOLE MENU!")
+            if confirm_action("CLEAR THE MENU", 2):
                 print("MSG: CLEARING MENU...\n")
                 for course in MENU:
                     MENU[course] = {}
                 print("MSG: The menu is now empty.\n")
                 continue
             else:
-                print("MSG: Cancelling emptying menu...\n")
+                print("MSG: Cancelling clearing menu...\n")
 
         else:
             print("MSG: Logging out as chef...\n")
@@ -395,35 +401,34 @@ def run_chef_interface():
 
 def run_crew_interface():
     global MENU
-    global CUSTOMER_N
 
     items = get_flat_menu_dict()
+    customer_n = 0
 
     if not items:
         print("MSG: Sorry! The menu isn't prepared yet.\n")
         return
 
-    print("MSG: Welcome, crew!\n")
-
     print("MSG: Displaying menu...")
     for course in MENU:
         print(f"{course.upper()}:")
         for item, price in MENU[course].items():
-            print(f"> {item} - ${price:,g}")
-        print()
+            print(f"> {item} - {CURR}{price:,g}")
+
+    print("\nMSG: Welcome, crew!\n")
 
     while True:
         action = get_choice_loop("What would you like to do?", (take := "take order", "log out as crew"))
 
         if action == take:
-            print(f"MSG: Taking order of customer #{CUSTOMER_N + 1}.\n")
+            print(f"MSG: Taking order of customer #{customer_n + 1}.\n")
             orders: dict[str, list[float | int]] = {}
-            total = 0
+            customer_bill = 0
 
             is_taking_order = True
             to_confirm = is_in_confirmation = to_pay = False
 
-            customer_type = get_choice_loop(f"What type of customer is customer #{CUSTOMER_N + 1}?",
+            customer_type = get_choice_loop(f"What type of customer is customer #{customer_n + 1}?",
                                             ("regular", "senior citizen/PWD"))
 
             if customer_type == "regular":
@@ -432,13 +437,13 @@ def run_crew_interface():
                 customer_is_discountable = True
 
             while is_taking_order:
-                course = get_choice_loop(f"What course would customer #{CUSTOMER_N + 1} like to go to?",
+                course = get_choice_loop(f"What course would customer #{customer_n + 1} like to go to?",
                                          (*MENU, "cancel adding" if is_in_confirmation else "cancel order"))
                 is_in_courses = True
 
                 if course == "cancel order":
                     if confirm_action("Cancel the customer's order", 2):
-                        print(f"MSG: Customer #{CUSTOMER_N + 1} cancelled their order.\n")
+                        print(f"MSG: Customer #{customer_n + 1} cancelled their order.\n")
                         break
                     else:
                         continue
@@ -453,8 +458,8 @@ def run_crew_interface():
                         print(f"Sorry, no {course} dishes yet.\n")
                         break
 
-                    choice = get_choice_loop(f"What {course} would customer #{CUSTOMER_N + 1} like to order?",
-                                             (*(f"{item} - ${price}" for item, price in course_items.items()),
+                    choice = get_choice_loop(f"What {course} would customer #{customer_n + 1} like to order?",
+                                             (*(f"{item} - {CURR}{price}" for item, price in course_items.items()),
                                               choose_course := "choose another course (Go back)"))
 
                     if choice == choose_course:
@@ -462,7 +467,7 @@ def run_crew_interface():
                             to_confirm = False
                         break
 
-                    order = choice.split(" - $")[0]
+                    order = choice.split(" - {CURR}")[0]
                     price = items[order]
                     amount = get_num_loop(f"Amount of {order}: ", numtype="int", nl=False)
                     price = float(price)
@@ -474,7 +479,7 @@ def run_crew_interface():
                         print(f"MSG: Added {amount:,g} to {order}.\n")
                         orders[order][1] += amount
                     else:
-                        print(align(f"MSG: Customer ordered -> {order} (${price}) x {amount:,g}.\n", "l"))
+                        print(align(f"MSG: Customer ordered -> {order} ({CURR}{price}) x {amount:,g}.\n", "l"))
                         orders[order] = [price, amount]
 
                     customer_bill += price * amount
@@ -482,7 +487,7 @@ def run_crew_interface():
                     # end order prompt
                     if not is_in_confirmation:
                         order_again = get_choice_loop(
-                            f"Does customer #{CUSTOMER_N + 1} want to order another item?", YES_OR_NO)
+                            f"Does customer #{customer_n + 1} want to order another item?", ("yes", "no"))
                         if order_again == "no":
                             to_confirm = True
                     is_in_courses = False
@@ -491,11 +496,11 @@ def run_crew_interface():
                 while to_confirm:
                     print("Ordered items:")
                     for item in orders:
-                        print(f"> {item}: ${orders[item][0]:,g} x {orders[item][1]:,g}")
-                    print(f"\nSubtotal: ${customer_bill:,g}")
+                        print(f"> {item}: {CURR}{orders[item][0]:,g} x {orders[item][1]:,g}")
+                    print(f"\nSubtotal: {CURR}{customer_bill:,g}")
 
                     if customer_is_discountable:
-                        print(f"Total (discounted): ${customer_bill - customer_bill * 0.2:,g}\n")
+                        print(f"Total (discounted): {CURR}{customer_bill - customer_bill * 0.2:,g}\n")
                     else:
                         print()
 
@@ -518,7 +523,7 @@ def run_crew_interface():
                             if new_amount < 0:
                                 print("MSG: Invalid amount.\n")
                             elif new_amount == 0:
-                                print("MSG: Consider REMOVING the order.\n")
+                                print("TIP: Consider REMOVING the order.\n")
                                 break
                             else:
                                 old_amount = orders[item_to_edit][1]
@@ -534,7 +539,7 @@ def run_crew_interface():
                             print("MSG: Cancelling order deletion...\n")
                             continue
                         elif len(orders) == 1:
-                            print("Consider CANCELLING the order.\n")
+                            print("TIP: Consider CANCELLING the order.\n")
                             continue
                         else:
                             del_price, del_am = orders.pop(to_remove)
@@ -547,7 +552,7 @@ def run_crew_interface():
 
                     elif confirm == cancel_order:
                         if confirm_action("Cancel the whole order", 2):
-                            print(f"Customer #{CUSTOMER_N + 1} cancelled their order.\n")
+                            print(f"Customer #{customer_n + 1} cancelled their order.\n")
                             is_taking_order = is_in_confirmation = False
                             to_confirm = False
                             break
@@ -560,11 +565,11 @@ def run_crew_interface():
                     bill = customer_bill - customer_bill * 0.2 if customer_is_discountable else customer_bill
 
                     while True:
-                        print(align("Subtotal:", "l") + f"${customer_bill:,g}")
-                        print(align("Discounted:", 'l') + f"${bill:,g}") if customer_is_discountable else None
+                        print(align("Subtotal:", "l") + f"{CURR}{customer_bill:,g}")
+                        print(align("Discounted:", 'l') + f"{CURR}{bill:,g}") if customer_is_discountable else None
                         print("")
 
-                        payment = get_num_loop(align("PAYMENT:", 'l'), prefix="", suffix="$")
+                        payment = get_num_loop(align("PAYMENT:", 'l'), prefix="", suffix="{CURR}")
 
                         if payment < bill:
                             print("MSG: Insufficient payment.\n")
@@ -577,23 +582,23 @@ def run_crew_interface():
                     print(align("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA", 'c'))
                     print("\n")
 
-                    print(f"CUSTOMER #{CUSTOMER_N + 1} ORDERED:")
+                    print(f"CUSTOMER #{customer_n + 1} ORDERED:")
                     for item in orders:
                         price = (p := orders[item][0]) * (a := orders[item][1])
-                        print(col_fmt(f"> {item} - ${p:,g}", f"QTY x {a:,} ${price:,}"))
+                        print(col_fmt(f"> {item} - {CURR}{p:,g}", f"QTY x {a:,} {CURR}{price:,}"))
 
                     print(align("~", 'f'))
 
-                    print(col_fmt("SUBTOTAL:", f"${customer_bill:,}"))
+                    print(col_fmt("SUBTOTAL:", f"{CURR}{customer_bill:,}"))
                     print(col_fmt("APPLICABLE DISCOUNT:", "20%")) if customer_is_discountable else None
                     print("\n")
 
-                    print(col_fmt("AMOUNT DUE:", f"${bill:,}"))
-                    print(col_fmt("CASH PAYMENT:", f"${payment:,}"))
+                    print(col_fmt("AMOUNT DUE:", f"{CURR}{bill:,}"))
+                    print(col_fmt("CASH PAYMENT:", f"{CURR}{payment:,}"))
 
                     print(align("~", 'f'))
 
-                    print(col_fmt("CHANGE:", f"${payment - bill:,}"))
+                    print(col_fmt("CHANGE:", f"{CURR}{payment - bill:,.4f}"))
                     print("\n")
 
                     print(align("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!", 'c'))
@@ -603,7 +608,7 @@ def run_crew_interface():
 
                     break
 
-            CUSTOMER_N += 1
+            customer_n += 1
 
         else:
             print("MSG: Logging out as crew...\n")
