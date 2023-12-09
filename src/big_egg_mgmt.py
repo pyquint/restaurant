@@ -14,10 +14,8 @@ import tkinter as tk
 from tkinter import filedialog
 
 _PROGRAM_NAME = "Big Egg Menu Management System™"
-
 WIDTH = 64
 CURR = "$"
-
 CANCEL_KEY = "`"
 CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
 
@@ -35,18 +33,12 @@ MENU: dict[str, dict[str, float | int]] = {
 
 
 def get_flat_menu_dict() -> dict[str, int | float]:
-    """
-    Returns the menu's items and the corresponding price in a flat dictionary.
-
-    :return: dict[name: price] of all the items in the menu
-    """
+    """Returns the menu's items and the corresponding price in a flat dictionary."""
     return {item: value for course in MENU for item, value in MENU[course].items()}
 
 
 def clear_cli() -> None:
-    """
-    Clears the command line.
-    """
+    """Clears the command line."""
     os.system('cls')
     print(f" {_PROGRAM_NAME} ".center(WIDTH, '-'))
 
@@ -133,6 +125,8 @@ def get_choice_loop(prompt: str, choices,
     :param clear: clear text after input (default True)
     :return: an element of choices
     """
+    choices = tuple(choice for choice in choices if choice)
+
     if not choices:
         raise ValueError
 
@@ -147,7 +141,7 @@ def get_choice_loop(prompt: str, choices,
         try:
             user_input = input("\nEnter choice: ")
             if user_input.startswith('0'):
-                raise ValueError("Leading zeros should be ommitted.")
+                raise ValueError("Leading zeros should be omitted.")
             index = int(user_input)
             if index < 0:
                 raise IndexError
@@ -229,7 +223,7 @@ def run_chef_interface():
     while True:
         items = get_flat_menu_dict()
         action = get_choice_loop("What would you like to do?",
-                                 (modify := "modify the menu",
+                                 (modify := "manage the menu",
                                   load := "import menu from JSON",
                                   save := "save menu as JSON",
                                   see := "see current menu",
@@ -238,51 +232,46 @@ def run_chef_interface():
 
         if action == modify:
             while True:
-                imported_course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
+                course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
 
-                if imported_course == "go back":
+                if course == "go back":
                     break
-
-                course_items = MENU[imported_course]
-                empty_course_msg = f"MSG: The {imported_course} course is currently empty.\n"
 
                 # COURSE-SPECIFIC EDITING
                 while True:
-                    # WHAT TO DO IN THE CURRENT COURSE
-                    items = get_flat_menu_dict()
+                    course_items = MENU[course]
 
-                    choices = (*course_items, "cancel")
-                    course_action = get_choice_loop(f"Action for the {imported_course.upper()} course.",
-                                                    (add := "add item",
-                                                     modify := "edit item",
-                                                     remove := "remove item",
-                                                     display := f"display {imported_course} items",
+                    if course_items:
+                        edit, remove, display = ("edit item", "remove item", f"display {course} items")
+                    else:
+                        edit, remove, display = [""] * 3
+                        print(f"MSG: The {course} course is currently empty.\n")
+
+                    course_action = get_choice_loop(f"Action for the {course.upper()} course.",
+                                                    (add := "add item", edit, remove, display,
                                                      change_course := "change course (back)",
                                                      "log out as chef"))
 
                     if course_action == add:
                         item = input(f"PROMPT: Please specify the name of the new item {CANCEL_MSG}: ")
+
                         if not item or item.isspace():
                             print("MSG: Invalid. Item name must have at least one non-whitespace character.\n")
                         elif item == CANCEL_KEY:
                             print("MSG: Cancel adding...\n")
-                        elif item in items:
+                        elif item in get_flat_menu_dict():
                             print(f"\nMSG: {item} is already in the menu.\n")
                         else:
-                            if imported_course == "beverage and drink":
+                            if course == "beverage and drink":
                                 size = get_choice_loop("Specify the serve size: ",
                                                        ("small", "medium", "large", "none")).upper()
                                 item = item + " " + size if size == "none" else item
                             price = get_num_loop(f"Please specify the price for {item}: {CURR}")
-                            MENU[imported_course][item] = price
-                            print(f"MSG: Added {imported_course} item {item} priced {CURR}{price:,g}.\n")
+                            MENU[course][item] = price
+                            print(f"MSG: Added {course} item {item} priced {CURR}{price:,g}.\n")
 
-                    elif course_action == modify:
-                        if not course_items:
-                            print(empty_course_msg)
-                            continue
-
-                        item_to_edit = get_choice_loop("Which item would you like to edit?:", choices)
+                    elif course_action == edit:
+                        item_to_edit = get_choice_loop("Which item would you like to edit?:", (*course_items, "cancel"))
 
                         if item_to_edit == "cancel":
                             print("MSG: Cancelling edit...\n")
@@ -292,51 +281,41 @@ def run_chef_interface():
 
                         if property_to_edit == "name":
                             new_name = input(f"PROMPT: Please enter the new name for {item_to_edit} {CANCEL_MSG}: ")
-                            if new_name in MENU[imported_course]:
-                                print(f"{new_name} is already an {imported_course} item!\n")
+                            if new_name in MENU[course]:
+                                print(f"{new_name} is already an {course} item!\n")
                             elif new_name == CANCEL_KEY:
                                 print("MSG: Cancelling edit name...\n")
                             else:
-                                old_p = MENU[imported_course].pop(item_to_edit)
-                                MENU[imported_course][new_name] = old_p
+                                old_p = MENU[course].pop(item_to_edit)
+                                MENU[course][new_name] = old_p
                                 print(f"MSG: You have changed the name of {item_to_edit} to {new_name}.\n")
                         else:
                             new_price = get_num_loop(
                                 f"Please enter the new price for {item_to_edit} " +
-                                f"(enter {MENU[imported_course][item_to_edit]:,g} to cancel): {CURR}")
-                            if new_price == MENU[imported_course][item_to_edit]:
+                                f"(enter {MENU[course][item_to_edit]:,g} to cancel): {CURR}")
+                            if new_price == MENU[course][item_to_edit]:
                                 print(f"Kept the price of {item_to_edit} at {CURR}{new_price}.\n")
-                                continue
                             elif new_price == 0:
                                 if not confirm_action(f"Offer {item_to_edit} free of charge"):
                                     print("MSG: Cancelling edit price...\n")
-                                    continue
                             else:
-                                MENU[imported_course][item_to_edit] = new_price
+                                MENU[course][item_to_edit] = new_price
                             print(f"MSG: You have changed the price of {item_to_edit} to {CURR}{new_price:,g}.\n")
 
                     elif course_action == remove:
-                        if not course_items:
-                            print(empty_course_msg)
-                            continue
-
-                        item_to_remove = get_choice_loop("Select which item you want to remove:", choices)
+                        item_to_remove = get_choice_loop("Select which item you want to remove:",
+                                                         (*course_items, "cancel"))
                         if item_to_remove == "cancel":
                             print("MSG: Cancelling deletion...\n")
-                            continue
                         else:
                             if confirm_action(f"REMOVE {item_to_remove}"):
-                                del MENU[imported_course][item_to_remove]
-                                print(f"MSG: You have removed {item_to_remove} from the {imported_course} course.\n")
+                                del MENU[course][item_to_remove]
+                                print(f"MSG: You have removed {item_to_remove} from the {course} course.\n")
                             else:
                                 print("MSG: Cancelling deletion...\n")
 
                     elif course_action == display:
-                        if not course_items:
-                            print(empty_course_msg)
-                            continue
-
-                        print(f"MSG: Displaying {imported_course} items...")
+                        print(f"MSG: Displaying {course} items...")
                         for item, price in course_items.items():
                             print(f"> '{item.title()}': {CURR}{price:,g}")
                         print()
@@ -367,15 +346,16 @@ def run_chef_interface():
                             raise json.decoder.JSONDecodeError(f"Data is incorrect at item '{item}'",
                                                                content, content.index(item))
                     if not [item for imported_course in loaded_menu for item in loaded_menu[imported_course]]:
-                        raise FileNotFoundError("The JSON file you are about to import is empty.\n")
+                        print("The JSON file you are about to import is empty.\n")
+                        raise FileNotFoundError
 
-                if items and not confirm_action("Overwrite the current menu"):
+                if get_flat_menu_dict() and not confirm_action("Overwrite the current menu"):
                     raise FileNotFoundError
 
             except json.decoder.JSONDecodeError as e:
                 print(f"MSG: Something is wrong with the JSON data.\n{e}.\n")
-            except FileNotFoundError as e:
-                print(f"{e}MSG: Cancelling importing menu from JSON...\n")
+            except FileNotFoundError:
+                print("MSG: Cancelling importing menu from JSON...\n")
             else:
                 MENU = loaded_menu
                 print(f"MSG: Successfully imported {filename} as menu.\n")
@@ -385,8 +365,7 @@ def run_chef_interface():
                 print("MSG: The menu is currently empty.\n")
                 ask = get_choice_loop("Do you want to create a template menu JSON file?", ("yes", "no"))
                 if ask == "no":
-                    print("MSG: Cancelling saving menu as JSON...\n")
-                    continue
+                    raise FileNotFoundError
             file = filedialog.asksaveasfilename(parent=root,
                                                 title="Save menu as JSON file",
                                                 defaultextension=".json",
@@ -412,8 +391,8 @@ def run_chef_interface():
                 print("WARNING: YOU ARE ABOUT TO CLEAR THE WHOLE MENU!")
                 if confirm_action("CLEAR THE MENU", 2):
                     print("MSG: CLEARING MENU...\n")
-                    for imported_course in MENU:
-                        MENU[imported_course] = {}
+                    for course in MENU:
+                        MENU[course] = {}
                     print("MSG: The menu is now empty.\n")
                 else:
                     print("MSG: Cancelling clearing menu...\n")
