@@ -21,9 +21,9 @@ CURR = "$"
 CANCEL_KEY = "`"
 CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
 
-filedialog_root = tk.Tk()
-filedialog_root.withdraw()
-filedialog_root.attributes("-topmost", True)
+root = tk.Tk()
+root.withdraw()
+root.attributes("-topmost", True)
 
 MENU: dict[str, dict[str, float | int]] = {
     "appetizer": {},
@@ -37,6 +37,8 @@ MENU: dict[str, dict[str, float | int]] = {
 def get_flat_menu_dict() -> dict[str, int | float]:
     """
     Returns the menu's items and the corresponding price in a flat dictionary.
+
+    :return: dict[name: price] of all the items in the menu
     """
     return {item: value for course in MENU for item, value in MENU[course].items()}
 
@@ -58,20 +60,18 @@ def align(txt: str, alignment: str, padding: int = WIDTH, char: str = ' ') -> st
     :param padding: length of the string when formatted
     :param char: character of the padding
 
-    :return: formatted text
+    :return: aligned text
     """
     if alignment == 'c':
-        formatted_str = txt.center(padding)
+        aligned_text = txt.center(padding)
     elif alignment == 'l':
-        formatted_str = txt.ljust(padding, char)
+        aligned_text = txt.ljust(padding, char)
     elif alignment == 'r':
-        formatted_str = txt.rjust(padding, char)
-    elif alignment == 'f':
-        formatted_str = txt * padding
+        aligned_text = txt.rjust(padding, char)
     else:
         raise ValueError
 
-    return formatted_str
+    return aligned_text
 
 
 def col_fmt(string1: str, string2: str) -> str:
@@ -107,6 +107,17 @@ def confirm_action(action: str, repeat: int = 1) -> bool:
     return reply
 
 
+def print_menu_items():
+    print("MSG: Displaying menu...")
+    for course in MENU:
+        if not MENU[course]:
+            print(f"No {course.upper()} items yet...\n")
+            continue
+        print(f"{course.upper()} items:")
+        for item, price in MENU[course].items():
+            print(f"> {item} - {CURR}{price:,g}")
+
+
 def get_choice_loop(prompt: str, choices,
                     prefix: str = "PROMPT: ", suffix: str = "",
                     nl: bool = True, clear: bool = True):
@@ -118,7 +129,7 @@ def get_choice_loop(prompt: str, choices,
     :param prefix: prefix before the prompt (default "PROMPT: ")
     :param suffix: suffix after the prompt (default "")
     :param nl: newline after successful input (default True)
-    :param clear: clear text after successful input (default True)
+    :param clear: clear text after input (default True)
     :return: an element of choices
     """
     if not choices:
@@ -128,8 +139,10 @@ def get_choice_loop(prompt: str, choices,
         print(f"{prefix}{prompt}{suffix}")
 
         for i, option in enumerate(choices):
-            if option:
-                print(f"[{i + 1}] {option.upper() if isinstance(option, str) else option}")
+            if type(option) is str:
+                option = option.upper()
+            print(f"[{i + 1}] {option}")
+
         try:
             user_input = input("\nEnter choice: ")
             if user_input.startswith('0'):
@@ -141,11 +154,11 @@ def get_choice_loop(prompt: str, choices,
         except ValueError:
             if clear:
                 clear_cli()
-            print(f"MSG: Invalid input. Enter the index of your choice.\n")
+            print(f"MSG: Invalid input. Enter the number of your choice.\n")
         except IndexError:
             if clear:
                 clear_cli()
-            print(f"MSG: Input is out of bounds. Enter the index of your choice.\n")
+            print(f"MSG: Input is out of bounds. Enter the number of your choice.\n")
         else:
             break
 
@@ -167,7 +180,7 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     :param suffix: suffix after the prompt (default "")
     :param numtype: type of return value ("float" or "int", default "float")
     :param nl: newline after successful input (default True)
-    :param clear: clear text after successful input (default True)
+    :param clear: clear text after input (default True)
     :param negative: if allowing negative (default False)
     :return: float or int value of the input (default float)
     """
@@ -194,7 +207,8 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
         except ValueError:
             if clear:
                 clear_cli()
-            print(f"MSG: Invalid input. Enter a valid {"integer" if numtype == "int" else "number"}\n")
+            print(f"MSG: Invalid input.", end=" ")
+            print(f"Enter a valid {"integer" if numtype == "int" else "number"}\n")
         else:
             break
 
@@ -287,7 +301,8 @@ def run_chef_interface():
                                 print(f"MSG: You have changed the name of {item_to_edit} to {new_name}.\n")
                         else:
                             new_price = get_num_loop(
-                                f"Please enter the new price for {item_to_edit} (enter current price to cancel): {CURR}")
+                                f"Please enter the new price for {item_to_edit} " +
+                                f"(enter {MENU[course][item_to_edit]:,g} to cancel): {CURR}")
                             if new_price == MENU[course][item_to_edit]:
                                 print(f"Kept the price of {item_to_edit} at {CURR}{new_price}.\n")
                                 continue
@@ -333,27 +348,39 @@ def run_chef_interface():
                         return
 
         elif action == load:
-            filename = filedialog.askopenfilename(parent=filedialog_root,
+            filename = filedialog.askopenfilename(parent=root,
                                                   title="Import menu from JSON file",
-                                                  filetypes=[("JSON files", "*.json")])
+                                                  filetypes=[("JSON file", "*.json")])
             try:
                 with open(filename) as f:
                     loaded_menu = json.load(f)
-            except FileNotFoundError:
-                print(f"MSG: Cancelling file import...\n")
-                continue
 
-            if loaded_menu.keys() != MENU.keys():
-                print("MSG: File must have the same five courses.\n")
+                if loaded_menu.keys() != MENU.keys():
+                    print("MSG: File must have the same five courses.\n")
+                    continue
+                for course in loaded_menu:
+                    for item, price in loaded_menu[course].items():
+                        assert isinstance(price, (float, int))
+            except json.decoder.JSONDecodeError as e:
+                print(f"MSG: Something is wrong with the JSON data.\n{e}.\n")
                 continue
-            MENU = loaded_menu
-            print(f"MSG: Successfully imported {filename} as menu.\n")
+            except FileNotFoundError:
+                print(f"MSG: Cancelling importing menu from JSON...\n")
+                continue
+            except AssertionError:
+                print(f"Price data is invalid: {course} > {item} > {repr(price)}.\n")
+                continue
+            else:
+                MENU = loaded_menu
+                print(f"MSG: Successfully imported {filename} as menu.\n")
 
         elif action == save:
             if not items:
                 print("MSG: The menu is currently empty.\n")
-                continue
-            file = filedialog.asksaveasfilename(parent=filedialog_root,
+                ask = get_choice_loop("Do you want to create a template menu JSON file?", ("yes", "no"))
+                if ask == "no":
+                    continue
+            file = filedialog.asksaveasfilename(parent=root,
                                                 title="Save menu as JSON file",
                                                 defaultextension=".json",
                                                 filetypes=[("JSON file", ".json")])
@@ -370,14 +397,7 @@ def run_chef_interface():
                 print("MSG: The menu is currently empty.\n")
             else:
                 print("Displaying current menu:")
-                for course in MENU:
-                    if not MENU[course]:
-                        print(f"No {course.upper()} yet...\n")
-                        continue
-                    print(f"{course.upper()} items:")
-                    for item, price in MENU[course].items():
-                        print(f"> {item}: {CURR}{price:,g}")
-                    print()
+                print_menu_items()
 
         elif action == clear:
             if not items:
@@ -409,11 +429,7 @@ def run_crew_interface():
         print("MSG: Sorry! The menu isn't prepared yet.\n")
         return
 
-    print("MSG: Displaying menu...")
-    for course in MENU:
-        print(f"{course.upper()}:")
-        for item, price in MENU[course].items():
-            print(f"> {item} - {CURR}{price:,g}")
+    print_menu_items()
 
     print("\nMSG: Welcome, crew!\n")
 
@@ -436,6 +452,7 @@ def run_crew_interface():
             else:
                 customer_is_discountable = True
 
+            # ITEM ORDER LOOP
             while is_taking_order:
                 course = get_choice_loop(f"What course would customer #{customer_n + 1} like to go to?",
                                          (*MENU, "cancel adding" if is_in_confirmation else "cancel order"))
@@ -492,7 +509,7 @@ def run_crew_interface():
                             to_confirm = True
                     is_in_courses = False
 
-                # * confirmation prompt loop
+                # ORDER CONFIRMATION LOOP
                 while to_confirm:
                     print("Ordered items:")
                     for item in orders:
@@ -545,6 +562,7 @@ def run_crew_interface():
                             del_price, del_am = orders.pop(to_remove)
                             customer_bill -= del_price * del_am
                             print(f"MSG: Removed {to_remove} x {del_am} from orders.\n")
+                            continue
 
                     elif confirm == add:
                         is_taking_order = is_in_confirmation = True
@@ -574,20 +592,20 @@ def run_crew_interface():
                         if payment < bill:
                             print("MSG: Insufficient payment.\n")
                             continue
+
                         break
 
                     # RECEIPT FORMAT
-                    print(align("=", 'f'))
+                    print("=" * WIDTH)
                     print(align("BIG EGG RESTAURANT GROUP", 'c'))
-                    print(align("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA", 'c'))
-                    print("\n")
+                    print(align("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA", 'c') + "\n")
 
                     print(f"CUSTOMER #{customer_n + 1} ORDERED:")
                     for item in orders:
                         price = (p := orders[item][0]) * (a := orders[item][1])
                         print(col_fmt(f"> {item} - {CURR}{p:,g}", f"QTY x {a:,} {CURR}{price:,}"))
 
-                    print(align("~", 'f'))
+                    print("~" * WIDTH)
 
                     print(col_fmt("SUBTOTAL:", f"{CURR}{customer_bill:,}"))
                     print(col_fmt("APPLICABLE DISCOUNT:", "20%")) if customer_is_discountable else None
@@ -596,14 +614,12 @@ def run_crew_interface():
                     print(col_fmt("AMOUNT DUE:", f"{CURR}{bill:,}"))
                     print(col_fmt("CASH PAYMENT:", f"{CURR}{payment:,}"))
 
-                    print(align("~", 'f'))
+                    print("~" * WIDTH)
 
-                    print(col_fmt("CHANGE:", f"{CURR}{payment - bill:,.4f}"))
-                    print("\n")
+                    print(col_fmt("CHANGE:", f"{CURR}{payment - bill:,.4f}") + "\n")
 
                     print(align("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!", 'c'))
-                    print(align("=", 'f'))
-                    print("\n")
+                    print("=" * WIDTH + "\n")
                     # END RECEIPT FORMAT
 
                     break
