@@ -125,7 +125,10 @@ def get_choice_loop(prompt: str, choices,
     :param clear: clear text after input (default True)
     :return: an element of choices
     """
-    choices = tuple(choice for choice in choices if choice)
+    try:
+        choices = tuple(choice for choice in choices if choice)
+    except TypeError:
+        print("Choices must be an iterable.")
 
     if not choices:
         raise ValueError
@@ -145,7 +148,7 @@ def get_choice_loop(prompt: str, choices,
             index = int(user_input)
             if index < 0:
                 raise IndexError
-            choice = tuple(choices)[index - 1]
+            choice = choices[index - 1]
         except ValueError as e:
             if clear:
                 clear_cli()
@@ -262,10 +265,14 @@ def run_chef_interface():
                         elif item in get_flat_menu_dict():
                             print(f"\nMSG: {item} is already in the menu.\n")
                         else:
-                            if course == "beverage and drink":
+                            if course == "beverage":
+                                print("")
                                 size = get_choice_loop("Specify the serve size: ",
-                                                       ("small", "medium", "large", "none")).upper()
-                                item = item + " " + size if size == "none" else item
+                                                       ("small", "medium", "large", "none"), clear=False)
+                                item = f"{item} {size.upper()}" if size != "none" else item
+                                if item in get_flat_menu_dict():
+                                    print(f"MSG: {item} is already in the menu.\n")
+                                    continue
                             price = get_num_loop(f"Please specify the price for {item}: {CURR}")
                             MENU[course][item] = price
                             print(f"MSG: Added {course} item {item} priced {CURR}{price:,g}.\n")
@@ -317,7 +324,7 @@ def run_chef_interface():
                     elif course_action == display:
                         print(f"MSG: Displaying {course} items...")
                         for item, price in course_items.items():
-                            print(f"> '{item.title()}': {CURR}{price:,g}")
+                            print(f"> '{item}': {CURR}{price:,g}")
                         print()
 
                     elif course_action == change_course:
