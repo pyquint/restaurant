@@ -103,16 +103,16 @@ def print_items(course=None):
     to_display = course or "menu"
     print(f"MSG: Displaying {to_display} items...")
 
-    for menu_courses in MENU:
-        if course and menu_courses != course:
+    for menu_course in MENU:
+        if course and menu_course != course:
             continue
-        elif not MENU[course]:
-            print(f"No {course.upper()} items yet...\n")
-            continue
-        print(f"{course.upper()} items:")
-        for item, price in MENU[course].items():
-            print(f"> {item}: {CURR}{price:,g}")
-        print("")
+        if MENU[menu_course]:
+            print(f"{menu_course.upper()} items:")
+            for item, price in MENU[menu_course].items():
+                print(f"> {item}: {CURR}{price:,g}")
+            print("")
+        else:
+            print(f"No {menu_course.upper()} items yet...\n")
 
 
 def remove_course_item(course):
@@ -598,7 +598,7 @@ def run_crew_interface():
                     print(f"CUSTOMER #{customer_n + 1} ORDERED:")
                     for item in orders:
                         price = (p := orders[item][0]) * (a := orders[item][1])
-                        print(col_fmt(f"> {item} - {CURR}{p:,g}", f"QTY x {a:,} {CURR}{price:,}"))
+                        print(col_fmt(f"> {item} - {CURR}{p:,g}", f"QTY x {a:,g} {CURR}{price:,g}"))
 
                     print("~" * WIDTH)
 
