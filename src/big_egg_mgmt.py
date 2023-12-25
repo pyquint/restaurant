@@ -10,27 +10,40 @@
 
 import json
 import os
+import time
 import tkinter as tk
 from tkinter import filedialog
+
 
 root = tk.Tk()
 root.withdraw()
 root.attributes("-topmost", True)
 
-_PROGRAM_NAME = "Big Egg Menu Management System™"
-WIDTH = 64
-CURR = "$"
-CANCEL_KEY = "`"
-CANCEL_MSG = f"(enter {CANCEL_KEY} to cancel)"
-DISCOUNT = 0.2
+_PROGRAM_NAME = " Big Egg Menu Management System™ "
+WIDTH: int = 64
+CURR, CANCEL_KEY = '$', '`'
+CANCEL_MSG = f"({CANCEL_KEY} to cancel)"
+DISCOUNT: float | int = 0.2
 
 MENU: dict[str, dict[str, float | int]] = {
-    "appetizer": {"pea": 1},
-    "main": {"steak": 100},
+    "appetizer": {"Pea": 1},
+    "main": {"Steak": 100},
     "side": {},
     "dessert": {},
     "beverage": {},
 }
+
+
+def main():
+    while True:
+        mode = get_choice_loop("Who are you? Are you the chef or crew?",
+                               ("chef", "crew", "exit program"))
+        if mode == "chef":
+            run_chef_interface()
+        elif mode == "crew":
+            run_crew_interface()
+        else:
+            return
 
 
 def get_flat_menu_dict() -> dict[str, int | float]:
@@ -222,7 +235,7 @@ def take_order(customer_num, is_in_confirmation: bool = False) -> dict[str, int]
     course_items = MENU[course]
 
     if len(course_items) == 0:
-        print(f"Sorry, no {course} items yet.")
+        print(f"Sorry, no {course} items yet.\n")
         return 1
 
     sep = f" - {CURR}"
@@ -240,6 +253,49 @@ def take_order(customer_num, is_in_confirmation: bool = False) -> dict[str, int]
         print("MSG: Invalid amount!")
 
     return {item_ordered: amount_ordered}
+
+
+def get_payment(bill):
+    while True:
+        print(align("DUE:", "l") + f"{CURR}{bill:,g}")
+        payment = get_num_loop(align("PAYMENT", 'l'),
+                               prefix="", suffix=f"{CURR}")
+        if payment < bill:
+            print("MSG: Insufficient payment.\n")
+        else:
+            break
+    return payment
+
+
+def print_receipt(orders, customer_num, payment):
+    menu_items = get_flat_menu_dict()
+    bill = sum([menu_items[item] * orders[item] for item in orders])
+
+    print('=' * WIDTH)
+    print(align("BIG EGG RESTAURANT GROUP", 'c'))
+    print(align("Watson  0106, Jambo-Jambo Street", 'c'))
+    print(align("Los Angeles, Marikina, Philippines", 'c'))
+    print(align('=' * (WIDTH * 3 // 4), 'c'))
+
+    print(align("ORDER RECEIPT", 'c'))
+    print(col_fmt(f"CUSTOMER #{customer_num}",
+                  time.strftime("%Y-%m-%d %I:%M:%S %p")))
+
+    print('~' * WIDTH)
+    for item in orders:
+        price = (p := menu_items[item]) * (a := orders[item])
+        print(col_fmt(f"{item} - {CURR}{p:,g}",
+                      f"QTY x {a:,g}{" " * 4}{CURR}{price:,g}"))
+    print("~" * WIDTH)
+
+    print(col_fmt("SUB TOTAL", f"{CURR}{bill:,g}"))
+    print(col_fmt("PAYMENT", f"{CURR}{payment:,g}"))
+    print(col_fmt("CHANGE", f"{CURR}{payment - bill:,g}"))
+
+    print("~" * WIDTH)
+    print(align("Thanks For Visiting Big Egg!", 'c'))
+    print(align("Please Come Again!", 'c'))
+    print("=" * WIDTH + "\n")
 
 
 def get_choice_loop(prompt: str, choices,
@@ -357,9 +413,12 @@ def run_chef_interface():
     while True:
         items = get_flat_menu_dict()
         action = get_choice_loop("What would you like to do?",
-                                 (modify := "manage the menu", load := "import menu from JSON",
-                                  save := "save menu as JSON", see := "see current menu",
+                                 (modify := "manage the menu",
+                                  load := "import menu from JSON",
+                                  save := "save menu as JSON",
+                                  see := "see current menu",
                                   clear := "clear menu", "log out as chef"))
+
         if action == modify:
             while True:
                 course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
@@ -534,18 +593,14 @@ def run_crew_interface():
 
         # CONFIRMING THE ORDER
         while True:
-            print("Ordered items:")
-            for item in orders:
-                print(f"> {item}: {CURR}{orders[item]:,g} x {menu_items[item]:,g}")
-            print(f"\nTotal: {CURR}{customer_bill:,g}")
-            if customer_is_discountable:
-                print(f"Discounted: {CURR}{customer_bill - customer_bill * DISCOUNT:,g}\n")
-            else:
-                print("DISCOUNT NOT APPLICABLE.\n")
-
             confirm = get_choice_loop("Confirm order?",
-                                      ("Yes, confirm", edit := "No, edit amount", add := "No, add item",
-                                       remove := "No, remove item", cancel_order := "cancel order"))
+                                      ("Yes, confirm",
+                                       edit := "No, edit amount",
+                                       add := "No, add item",
+                                       remove := "No, remove item",
+                                       show_order := "Show ordered items",
+                                       cancel_order := "cancel order"))
+
             choices = (*orders, cancel := "cancel")
 
             if confirm == edit:
@@ -584,50 +639,26 @@ def run_crew_interface():
                     print(f"Customer #{customer_num} cancelled their order.\n")
                     is_cancelled = True
                     break
+            elif confirm == show_order:
+                print("Ordered items:")
+                for item in orders:
+                    print(f"> {item}: {CURR}{orders[item]:,g} x {menu_items[item]:,g}")
+                print(f"\nTotal: {CURR}{customer_bill:,g}")
+                if customer_is_discountable:
+                    print(f"Discounted: {CURR}{customer_bill - customer_bill * DISCOUNT:,g}\n")
+                else:
+                    print("DISCOUNT NOT APPLICABLE.\n")
             else:
                 break
 
         if is_cancelled:
             continue
 
-        while True:
-            print(align("Subtotal:", "l") + f"{CURR}{customer_bill:,g}")
-            print(align("Discounted:", 'l') + f"{CURR}{customer_bill:,g}") if customer_is_discountable else print("")
-            payment = get_num_loop(align("PAYMENT:", 'l'), prefix="", suffix=f"{CURR}")
-            if payment < customer_bill:
-                print("MSG: Insufficient payment.\n")
-            else:
-                break
+        if customer_is_discountable:
+            customer_bill = customer_bill - customer_bill * DISCOUNT
 
-        print("=" * WIDTH)
-        print(align("BIG EGG RESTAURANT GROUP", 'c'))
-        print(align("JAMBO-JAMBO STREET, LOS ANGELES, MARIKINA", 'c') + "\n")
-        print(f"CUSTOMER #{customer_num} ORDERED:")
-        for item in orders:
-            price = (p := menu_items[item]) * (a := orders[item])
-            print(col_fmt(f"> {item} - {CURR}{p:,g}", f"QTY x {a:,g} {CURR}{price:,g}"))
-        print("~" * WIDTH)
-        print(col_fmt("SUBTOTAL:", f"{CURR}{customer_bill:,}"))
-        print(col_fmt("APPLICABLE DISCOUNT:", f"{DISCOUNT * 100:,g}%")) if customer_is_discountable else None
-        print("\n")
-        print(col_fmt("AMOUNT DUE:", f"{CURR}{customer_bill:,}"))
-        print(col_fmt("PAYMENT:", f"{CURR}{payment:,}"))
-        print("~" * WIDTH)
-        print(col_fmt("CHANGE:", f"{CURR}{payment - customer_bill:,.4f}") + "\n")
-        print(align("THANKS FOR VISITING BIG EGG! COME AGAIN SOON!", 'c'))
-        print("=" * WIDTH + "\n")
-
-
-def main():
-    while True:
-        mode = get_choice_loop("Who are you? Are you the chef or crew?",
-                               ("chef", "crew", "exit restaurant"))
-        if mode == "chef":
-            run_chef_interface()
-        elif mode == "crew":
-            run_crew_interface()
-        else:
-            return
+        customer_payment = get_payment(customer_bill)
+        print_receipt(orders, customer_num, customer_payment)
 
 
 if __name__ == "__main__":
