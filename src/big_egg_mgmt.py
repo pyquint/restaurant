@@ -450,7 +450,7 @@ def run_chef_interface():
         elif action == clear:
             clear_menu()
         elif action == create_template:
-            save_menu_to_json(template=True)  # TODO
+            save_menu_to_json(template=True)
         else:
             print("MSG: Logging out as chef...\n")
             return 0
