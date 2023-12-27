@@ -14,14 +14,14 @@ import time
 import tkinter as tk
 from tkinter import filedialog
 
-
 root = tk.Tk()
 root.withdraw()
 root.attributes("-topmost", True)
 
 _PROGRAM_NAME = " Big Egg Menu Management System™ "
 WIDTH: int = 64
-CURR, CANCEL_KEY = '$', '`'
+CURR = '$'
+CANCEL_KEY = '`'
 CANCEL_MSG = f"({CANCEL_KEY} to cancel)"
 DISCOUNT: float | int = 0.2
 
@@ -164,12 +164,11 @@ def edit_course_item(course: str):
 
     else:
         new_price = get_num_loop(f"Please enter the new price for {item_to_edit}: {CURR}")
-        if not new_price:
-            if not confirm_action(f"Offer {item_to_edit} free of charge"):
-                raise ValueError("MSG: Cancelling edit price...\n")
+        if new_price == 0 and not confirm_action(f"Offer {item_to_edit} free of charge"):
+            raise ValueError("MSG: Cancelling edit price...\n")
 
         MENU[course][item_to_edit] = new_price
-        print(f"MSG: You have changed the price of {item_to_edit} to {CURR}{new_price:,g}.\n")
+        print(f"MSG: You have changed the price of '{item_to_edit}' to {CURR}{new_price:,g}.\n")
 
 
 def add_course_item(course):
@@ -185,13 +184,17 @@ def add_course_item(course):
     if course == "beverage":
         size = get_choice_loop("Specify the serve size: ",
                                ("small", "medium", "large", "none"), clear=False)
-        item = f"{item} {size.upper()}" if size != "none" else item
+        item = f"'{item}' {size.upper()}" if size != "none" else item
         if item in get_flat_menu_dict():
             raise ValueError(f"MSG: '{item}' is already in the menu.\n")
 
-    price = get_num_loop(f"Please specify the price for {item}: {CURR}")
+    price = get_num_loop(f"Please specify the price for '{item}': {CURR}")
+
+    if price == 0 and not confirm_action(f"Offer '{item}' free of charge"):
+        raise ValueError("MSG: Cancelling edit price...\n")
+
     MENU[course][item] = price
-    print(f"MSG: Added {course} item {item} priced {CURR}{price:,g}.\n")
+    print(f"MSG: Added {course} item '{item}' priced {CURR}{price:,g}.\n")
 
 
 def load_json(filename):
@@ -255,7 +258,18 @@ def take_order(customer_num, is_in_confirmation: bool = False) -> dict[str, int]
     return {item_ordered: amount_ordered}
 
 
-def get_payment(bill):
+def get_payment(orders: dict[str, int], discountable: bool = False) -> int | float:
+    """
+    Receives
+    :param orders:
+    :param discountable:
+    :return:
+    """
+    bill = sum([orders[item] * get_flat_menu_dict()[item] for item in orders])
+
+    if discountable:
+        bill = bill - bill * DISCOUNT
+
     while True:
         print(align("DUE:", "l") + f"{CURR}{bill:,g}")
         payment = get_num_loop(align("PAYMENT", 'l'),
@@ -267,9 +281,21 @@ def get_payment(bill):
     return payment
 
 
-def print_receipt(orders, customer_num, payment):
+def print_receipt(orders: dict[str, int], customer_num: int, payment: int | float, discountable: float = False) -> None:
+    """
+    It uh, print receipts.
+
+    :param orders: dictionary consisting of item name and amount ordered
+    :param customer_num: the current customer number being catered
+    :param payment: customer's payment
+    :param discountable: boolean
+    :return: None
+    """
     menu_items = get_flat_menu_dict()
     bill = sum([menu_items[item] * orders[item] for item in orders])
+
+    if discountable:
+        bill = bill - bill * DISCOUNT
 
     print('=' * WIDTH)
     print(align("BIG EGG RESTAURANT GROUP", 'c'))
@@ -293,14 +319,12 @@ def print_receipt(orders, customer_num, payment):
     print(col_fmt("CHANGE", f"{CURR}{payment - bill:,g}"))
 
     print("~" * WIDTH)
-    print(align("Thanks For Visiting Big Egg!", 'c'))
+    print(align("Thank You For Visiting Big Egg!", 'c'))
     print(align("Please Come Again!", 'c'))
     print("=" * WIDTH + "\n")
 
 
-def get_choice_loop(prompt: str, choices,
-                    prefix: str = "PROMPT: ", suffix: str = "",
-                    nl: bool = True, clear: bool = True):
+def get_choice_loop(prompt: str, choices, prefix: str = "PROMPT: ", suffix: str = "", clear: bool = True):
     """
     Repeatedly asks the user to enter a number representing the chosen option from an iterable of choices.
 
@@ -308,7 +332,6 @@ def get_choice_loop(prompt: str, choices,
     :param choices: iterable of choices
     :param prefix: prefix before the prompt (default "PROMPT: ")
     :param suffix: suffix after the prompt (default "")
-    :param nl: newline after successful input (default True)
     :param clear: clear text after input (default True)
     :return: an element of choices
     """
@@ -320,7 +343,7 @@ def get_choice_loop(prompt: str, choices,
         raise ValueError("`choices` must have at least one element.")
 
     while True:
-        print(f"{prefix}{prompt}{suffix}")
+        print(prefix, prompt, suffix, sep="")
 
         for i, option in enumerate(choices, 1):
             if type(option) is str:
@@ -328,7 +351,9 @@ def get_choice_loop(prompt: str, choices,
             print(f"[{i}] {option}")
 
         try:
-            user_input = input("\nEnter choice: ")
+            print("")
+            user_input = input("Enter choice: ")
+            if clear: clear_cli()
             if user_input.startswith('0'):
                 raise ValueError("Leading zeros should be omitted.")
             index = int(user_input)
@@ -336,21 +361,13 @@ def get_choice_loop(prompt: str, choices,
                 raise IndexError
             choice = choices[index - 1]
         except ValueError:
-            if clear:
-                clear_cli()
             print(f"MSG: Invalid input. Enter a positive integer number.\n")
         except IndexError:
-            if clear:
-                clear_cli()
             print(f"MSG: Input is out of bounds. Enter the valid number of your choice.\n")
         except AttributeError:
             print("MSG: Invalid `choice` argument passed.")
         else:
             break
-    if nl:
-        print()
-    if clear:
-        clear_cli()
 
     return choice
 
@@ -406,8 +423,6 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
 
 
 def run_chef_interface():
-    global MENU
-
     print("MSG: Welcome, Chef!\n")
 
     while True:
@@ -417,95 +432,111 @@ def run_chef_interface():
                                   load := "import menu from JSON",
                                   save := "save menu as JSON",
                                   see := "see current menu",
+                                  create_template := "create template menu file",
                                   clear := "clear menu", "log out as chef"))
 
+        if action in (save, see, clear) and not items:
+            print("MSG: The menu is currently empty.\n")
+            continue
+
         if action == modify:
-            while True:
-                course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
-
-                if course == "go back":
-                    break
-
-                while True:
-                    course_items = MENU[course]
-
-                    if course_items:
-                        edit, remove, display = "edit item", "remove item", f"display {course} items"
-                    else:
-                        edit, remove, display = [""] * 3
-                        print(f"NOTICE: The {course} course is currently empty. Only adding is allowed.\n")
-
-                    course_action = get_choice_loop(f"Action for the {course.upper()} course.",
-                                                    (add := "add item", edit, remove, display,
-                                                     change_course := "change course", "log out as chef"))
-                    try:
-                        if course_action == add:
-                            add_course_item(course)
-                        elif course_action == edit:
-                            edit_course_item(course)
-                        elif course_action == remove:
-                            remove_course_item(course)
-                        elif course_action == display:
-                            print_items(course)
-                        elif course_action == change_course:
-                            break
-                        else:
-                            print("MSG: Logging out as chef...\n")
-                            return
-                    except ValueError as e:
-                        print(e)
-
+            modify_menu()
         elif action == load:
-            filename = filedialog.askopenfilename(parent=root, title="Import menu from JSON file",
-                                                  filetypes=[("JSON file", "*.json")])
-            try:
-                loaded_menu = load_json(filename)
-            except json.decoder.JSONDecodeError as e:
-                print(f"MSG: Something is wrong with the JSON data.\n{e}.\n")
-            except FileNotFoundError:
-                print("MSG: Cancelling importing menu from JSON...\n")
-            else:
-                MENU = loaded_menu
-                print(f"MSG: Successfully imported {filename} as menu.\n")
-
+            load_menu_from_json()
         elif action == save:
-            if not items:
-                print("MSG: The menu is currently empty.\n")
-                if get_choice_loop("Do you want to create a template menu JSON file?", ("yes", "no")) == "no":
-                    raise FileNotFoundError
-
-            file = filedialog.asksaveasfilename(parent=root, title="Save menu as JSON file",
-                                                defaultextension=".json", filetypes=[("JSON file", ".json")])
-            try:
-                with open(file, 'w') as f:
-                    json.dump(MENU, f)
-            except FileNotFoundError as e:
-                print(f"{e}\nMSG: Cancelling saving menu as JSON...\n")
-            else:
-                print(f"MSG: Created file {file}.\n")
-
+            save_menu_to_json()
         elif action == see:
-            if not items:
-                print("MSG: The menu is currently empty.\n")
-            else:
-                print_items()
-
+            print_items()
         elif action == clear:
-            if not items:
-                print("MSG: The menu is currently empty.\n")
-            else:
-                print("WARNING: YOU ARE ABOUT TO CLEAR THE WHOLE MENU!")
-                if confirm_action("CLEAR THE MENU", 2):
-                    print("MSG: CLEARING MENU...\n")
-                    for course in MENU:
-                        MENU[course] = {}
-                    print("MSG: The menu is now empty.\n")
-                else:
-                    print("MSG: Cancelling clearing menu...\n")
-
+            clear_menu()
+        elif action == create_template:
+            save_menu_to_json(template=True)  # TODO
         else:
             print("MSG: Logging out as chef...\n")
             return 0
+
+
+def modify_menu():
+    while True:
+        course = get_choice_loop("Which course would you like to go to?", (*MENU, "go back"))
+
+        if course == "go back":
+            break
+
+        while True:
+            course_items = MENU[course]
+
+            if course_items:
+                edit, remove, display = "edit item", "remove item", f"display {course} items"
+            else:
+                edit, remove, display = [""] * 3
+                print(f"NOTICE: The {course} course is currently empty. Only adding is allowed.\n")
+
+            course_action = get_choice_loop(f"Action for the {course.upper()} course.",
+                                            (add := "add item", edit, remove, display,
+                                             change_course := "change course", "log out as chef"))
+            try:
+                if course_action == add:
+                    add_course_item(course)
+                elif course_action == edit:
+                    edit_course_item(course)
+                elif course_action == remove:
+                    remove_course_item(course)
+                elif course_action == display:
+                    print_items(course)
+                elif course_action == change_course:
+                    break
+                else:
+                    print("MSG: Logging out as chef...\n")
+                    return 0
+            except ValueError as e:
+                print(e)
+
+
+def load_menu_from_json():
+    global MENU
+
+    filename = filedialog.askopenfilename(parent=root, title="Import menu from JSON file",
+                                          filetypes=[("JSON file", "*.json")])
+    try:
+        loaded_menu = load_json(filename)
+    except json.decoder.JSONDecodeError as e:
+        print(f"MSG: Something is wrong with the JSON data.\n{e}.\n")
+    except FileNotFoundError:
+        print("MSG: Cancelling importing menu from JSON...\n")
+    else:
+        MENU = loaded_menu
+        print(f"MSG: Successfully imported {filename} as menu.\n")
+
+
+def save_menu_to_json(template: bool = False):
+    if template:
+        menu = {course: {} for course in MENU}
+    else:
+        menu = MENU
+
+    file = filedialog.asksaveasfilename(parent=root, title="Save menu as JSON file",
+                                        defaultextension=".json", filetypes=[("JSON file", ".json")])
+    try:
+        with open(file, 'w') as f:
+            json.dump(menu, f)
+    except FileNotFoundError as e:
+        print(f"{e}\nMSG: Cancelling file save...\n")
+    else:
+        print(f"MSG: Created file {file}.\n")
+
+
+def clear_menu():
+    global MENU
+
+    print("WARNING: YOU ARE ABOUT TO CLEAR THE WHOLE MENU!")
+    if confirm_action("CLEAR THE MENU", 2):
+        print("MSG: CLEARING MENU...\n")
+        for course in MENU:
+            MENU[course].clear()
+        print("MSG: The menu is now empty.\n")
+    else:
+        print("MSG: Cancelling clearing menu...\n")
 
 
 def run_crew_interface():
@@ -575,7 +606,7 @@ def run_crew_interface():
             price = menu_items[item]
 
             if item in orders:
-                print(f"MSG: Added {amount:,g} to {item}.\n")
+                print(f"MSG: Added {amount:,g} '{item}' to order.\n")
                 orders[item] += amount
             else:
                 print(align(f"MSG: Customer ordered -> {item} ({CURR}{price}) x {amount:,g}.\n", "l"))
@@ -632,7 +663,7 @@ def run_crew_interface():
                     continue
                 item, amount = *order.keys(), *order.values()
                 customer_bill += menu_items[item] * amount
-                print(f"MSG: Added item {item} in orders.\n")
+                print(f"MSG: Added item '{item}' in orders.\n")
                 orders.update(order)
             elif confirm == cancel_order:
                 if confirm_action("Cancel the whole order", 2):
@@ -654,11 +685,8 @@ def run_crew_interface():
         if is_cancelled:
             continue
 
-        if customer_is_discountable:
-            customer_bill = customer_bill - customer_bill * DISCOUNT
-
-        customer_payment = get_payment(customer_bill)
-        print_receipt(orders, customer_num, customer_payment)
+        customer_payment = get_payment(orders, customer_is_discountable)
+        print_receipt(orders, customer_num, customer_payment, customer_is_discountable)
 
 
 if __name__ == "__main__":
