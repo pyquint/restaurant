@@ -26,12 +26,14 @@ CANCEL_MSG = f"({CANCEL_KEY} to cancel)"
 DISCOUNT: float | int = 0.2
 
 MENU: dict[str, dict[str, float | int]] = {
-    "appetizer": {"Pea": 1},
-    "main": {"Steak": 100},
+    "appetizer": {},
+    "main": {},
     "side": {},
     "dessert": {},
     "beverage": {},
 }
+
+ORDERS: dict[str, int] = {}
 
 
 def main():
@@ -43,7 +45,170 @@ def main():
         elif mode == "crew":
             run_crew_interface()
         else:
-            return
+            return 0
+
+
+def run_chef_interface():
+    print("MSG: Welcome, Chef!\n")
+
+    while True:
+        items = get_flat_menu_dict()
+        action = get_choice_loop("What would you like to do?",
+                                 (modify := "manage the menu",
+                                  load := "import menu from JSON",
+                                  save := "save menu as JSON",
+                                  see := "see current menu",
+                                  create_template := "create template menu file",
+                                  clear := "clear menu", "log out as chef"))
+
+        if action in (save, see, clear) and not items:
+            print("MSG: The menu is currently empty.\n")
+            continue
+
+        if action == modify:
+            modify_menu()
+        elif action == load:
+            load_menu_from_json()
+        elif action == save:
+            save_menu_to_json()
+        elif action == see:
+            print_items()
+        elif action == clear:
+            clear_menu()
+        elif action == create_template:
+            save_menu_to_json(template=True)
+        else:
+            print("MSG: Logging out as chef...\n")
+            return 0
+
+
+def run_crew_interface():
+    global ORDERS
+
+    customer_num = 0
+    menu_items = get_flat_menu_dict()
+
+    if not menu_items:
+        print("MSG: Sorry! The menu isn't prepared yet.\n")
+        return 0
+
+    print_items()
+    print("MSG: Welcome, crew!\n")
+
+    while True:
+        customer_num += 1
+        action = get_choice_loop("What would you like to do?", ("take order", log_out := "log out as crew"))
+
+        if action == log_out:
+            print("MSG: Logging out as crew...\n")
+            return 0
+
+        # `orders` dict consists of item name and the amount ordered
+        customer_bill = 0
+        is_cancelled = False
+
+        print(f"MSG: Taking order of customer #{customer_num}.\n")
+
+        customer_type = get_choice_loop(f"What type of customer is customer #{customer_num}?",
+                                        ("regular", "senior citizen/PWD"))
+        customer_is_discountable = False if customer_type == "regular" else True
+
+        # TAKING ORDER
+        while True:
+            order = take_order(customer_num)
+
+            if order == 1:
+                continue
+            elif order == 0:
+                is_cancelled = True
+                break
+
+            item, amount = *order.keys(), *order.values()
+            price = menu_items[item]
+
+            if item in ORDERS:
+                print(f"MSG: Added {amount:,g} {item!r} to order.\n")
+                ORDERS[item] += amount
+            else:
+                print(align(f"MSG: Customer ordered -> {item!r} ({CURR}{price}) x {amount:,g}.\n", "l"))
+                ORDERS.update(order)
+
+            order_again = get_choice_loop(
+                f"Does customer #{customer_num} want to order another item?", ("yes", "no"))
+
+            if order_again == "no":
+                break
+
+        if is_cancelled:
+            continue
+
+        # CONFIRMING THE ORDER
+        while True:
+            confirm = get_choice_loop("Confirm order?",
+                                      ("Yes, confirm",
+                                       edit := "No, edit amount",
+                                       add := "No, add item",
+                                       remove := "No, remove item",
+                                       show_order := "Show ordered items",
+                                       cancel_order := "cancel order"))
+
+            choices = (*ORDERS, cancel := "cancel")
+
+            if confirm == edit:
+                item_to_edit = get_choice_loop("Which would you like to edit the amount of?", choices)
+                if item_to_edit == cancel:
+                    print("MSG: Cancelling order edit...\n")
+                else:
+                    new_amount = get_num_loop(f"New amount of {item_to_edit!r}: {CANCEL_MSG}", numtype="int")
+                    if new_amount == 0:
+                        print("TIP: Consider REMOVING the order.\n")
+                    elif new_amount == CANCEL_KEY:
+                        print("MSG: Cancelling order edit.\n")
+                    else:
+                        old_amount = ORDERS[item_to_edit]
+                        customer_bill += menu_items[item_to_edit] * (new_amount - old_amount)
+                        ORDERS[item_to_edit] = new_amount
+                        print(f"MSG: Changed {item_to_edit!r} amount from {old_amount:,g} to {new_amount:,g}.\n")
+            elif confirm == remove:
+                to_remove = get_choice_loop("Which order would you like to remove?", choices)
+                if to_remove == cancel:
+                    print("MSG: Cancelling order deletion...\n")
+                elif len(ORDERS) == 1:
+                    print("TIP: Consider CANCELLING the order.\n")
+                else:
+                    del_am = ORDERS.pop(to_remove)
+                    customer_bill -= menu_items[to_remove] * del_am
+                    print(f"MSG: Removed {to_remove!r} x {del_am} from orders.\n")
+            elif confirm == add:
+                order = take_order(customer_num, is_in_confirmation=True)
+                if order == 1:
+                    continue
+                item, amount = *order.keys(), *order.values()
+                customer_bill += menu_items[item] * amount
+                print(f"MSG: Added item {item!r} in orders.\n")
+                ORDERS.update(order)
+            elif confirm == cancel_order:
+                if confirm_action("Cancel the whole order", 2):
+                    print(f"Customer #{customer_num} cancelled their order.\n")
+                    is_cancelled = True
+                    break
+            elif confirm == show_order:
+                print("Ordered items:")
+                for item in ORDERS:
+                    print(f"> {item}: {CURR}{ORDERS[item]:,g} x {menu_items[item]:,g}")
+                print(f"\nTotal: {CURR}{customer_bill:,g}")
+                if customer_is_discountable:
+                    print(f"Discounted: {CURR}{customer_bill - customer_bill * DISCOUNT:,g}\n")
+                else:
+                    print("DISCOUNT NOT APPLICABLE.\n")
+            else:
+                break
+
+        if is_cancelled:
+            continue
+
+        customer_payment = get_payment(ORDERS, customer_is_discountable)
+        print_receipt(ORDERS, customer_num, customer_payment, customer_is_discountable)
 
 
 def get_flat_menu_dict() -> dict[str, int | float]:
@@ -171,7 +336,7 @@ def edit_course_item(course: str):
 
         old_p = MENU[course][item_to_edit]
         MENU[course][item_to_edit] = new_price
-        print(f"MSG: You have changed the price of {item_to_edit!r} from {CURR}{old_p} into {CURR}{new_price:,g}.\n")
+        print(f"MSG: You have changed the price of {item_to_edit!r} from {CURR}{old_p:,g} into {CURR}{new_price:,g}.\n")
 
 
 def add_course_item(course):
@@ -376,7 +541,7 @@ def get_choice_loop(prompt: str, choices, prefix: str = "PROMPT: ", suffix: str 
     return choice
 
 
-def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtype: str = "float", nl: bool = True,
+def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtype: str = "float",
                  clear: bool = True, negative: bool = False) -> float | int:
     """
     Repeatedly asks the user for a number until it is valid input.
@@ -385,7 +550,6 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     :param prefix: prefix before the prompt (default "PROMPT: ")
     :param suffix: suffix after the prompt (default "")
     :param numtype: type of return value ("float" or "int", default "float")
-    :param nl: newline after successful input (default True)
     :param clear: clear text after input (default True)
     :param negative: if allowing negative (default False)
     :return: float or int value of the input (default float)
@@ -396,6 +560,7 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
     while True:
         try:
             user_input = input(f"{prefix}{prompt}{suffix}")
+            if clear: clear_cli()
 
             # cleans input with commas
             if "," in user_input:
@@ -404,60 +569,19 @@ def get_num_loop(prompt: str, prefix: str = "PROMPT: ", suffix: str = "", numtyp
                 if "." in sections[-1]:
                     sections[-1] = sections[-1].split(".")[0]
                 if (0 >= length or length > 3) or any((len(s) != 3 for s in sections[1:])):
-                    raise ValueError("Invalid number format.")
+                    raise ValueError(f"{user_input!r} is in an invalid number format.")
                 user_input = user_input.replace(",", "")
 
             number = int(user_input) if numtype == "int" else float(user_input)
             if not negative and number < 0:
                 raise ValueError("Positive numbers only.")
         except ValueError as e:
-            if clear:
-                clear_cli()
             print(f"MSG: Invalid input. {e}")
             print(f"MSG: Enter a valid {"integer" if numtype == "int" else "number"}\n")
         else:
             break
 
-    if nl:
-        print()
-    if clear:
-        clear_cli()
-
     return number
-
-
-def run_chef_interface():
-    print("MSG: Welcome, Chef!\n")
-
-    while True:
-        items = get_flat_menu_dict()
-        action = get_choice_loop("What would you like to do?",
-                                 (modify := "manage the menu",
-                                  load := "import menu from JSON",
-                                  save := "save menu as JSON",
-                                  see := "see current menu",
-                                  create_template := "create template menu file",
-                                  clear := "clear menu", "log out as chef"))
-
-        if action in (save, see, clear) and not items:
-            print("MSG: The menu is currently empty.\n")
-            continue
-
-        if action == modify:
-            modify_menu()
-        elif action == load:
-            load_menu_from_json()
-        elif action == save:
-            save_menu_to_json()
-        elif action == see:
-            print_items()
-        elif action == clear:
-            clear_menu()
-        elif action == create_template:
-            save_menu_to_json(template=True)
-        else:
-            print("MSG: Logging out as chef...\n")
-            return 0
 
 
 def modify_menu():
@@ -541,156 +665,6 @@ def clear_menu():
         print("MSG: The menu is now empty.\n")
     else:
         print("MSG: Cancelling clearing menu...\n")
-
-
-def run_crew_interface():
-    customer_num = 0
-    menu_items = get_flat_menu_dict()
-
-    if not menu_items:
-        print("MSG: Sorry! The menu isn't prepared yet.\n")
-        return 0
-
-    print_items()
-    print("MSG: Welcome, crew!\n")
-
-    while True:
-        customer_num += 1
-        action = get_choice_loop("What would you like to do?", ("take order", log_out := "log out as crew"))
-
-        if action == log_out:
-            print("MSG: Logging out as crew...\n")
-            return 0
-
-        # `orders` consists of item name and the amount ordered
-        orders: dict[str, int] = {}
-        customer_bill = 0
-        is_cancelled = False
-
-        print(f"MSG: Taking order of customer #{customer_num}.\n")
-
-        customer_type = get_choice_loop(f"What type of customer is customer #{customer_num}?",
-                                        ("regular", "senior citizen/PWD"))
-        customer_is_discountable = False if customer_type == "regular" else True
-
-        # TO BE USED AFTER MAIN ORDER SEQUENCE, WHEN EDITING THE ORDER
-        def modify_order_amount(item_order, order_action="edit", change_to=None):
-            """
-            :param item_order: the ordered item to be modified
-            :param order_action: accepts either "remove" or "edit" (default)
-            :param change_to: if order_action is "edit", the updated amount, otherwise None
-            """
-            nonlocal customer_bill
-
-            if order_action == "edit":
-                if not change_to:
-                    raise ValueError(f"Calling `modify_order_amount()` in 'edit' mode must have a `new_amount` passed.")
-                old_amount = orders[item_order]
-                customer_bill += menu_items[item_order] * (change_to - old_amount)
-                orders[item_order] = change_to
-                print(f"MSG: Changed {item_order!r} amount from {old_amount:,g} to {change_to:,g}.\n")
-            elif order_action == "remove":
-                del_am = orders.pop(to_remove)
-                customer_bill -= menu_items[to_remove] * del_am
-                print(f"MSG: Removed {to_remove!r} x {del_am} from orders.\n")
-            else:
-                raise ValueError("`modify_order_amount()` only accepts 'edit' or 'remove' as `order_action`.\n")
-
-        # TAKING ORDER
-        while True:
-            order = take_order(customer_num)
-
-            if order == 1:
-                continue
-            elif order == 0:
-                is_cancelled = True
-                break
-
-            item, amount = *order.keys(), *order.values()
-            price = menu_items[item]
-
-            if item in orders:
-                print(f"MSG: Added {amount:,g} {item!r} to order.\n")
-                orders[item] += amount
-            else:
-                print(align(f"MSG: Customer ordered -> {item!r} ({CURR}{price}) x {amount:,g}.\n", "l"))
-                orders.update(order)
-
-            customer_bill += amount * price
-            order_again = get_choice_loop(
-                f"Does customer #{customer_num} want to order another item?", ("yes", "no"))
-
-            if order_again == "no":
-                break
-
-        if is_cancelled:
-            continue
-
-        # CONFIRMING THE ORDER
-        while True:
-            confirm = get_choice_loop("Confirm order?",
-                                      ("Yes, confirm",
-                                       edit := "No, edit amount",
-                                       add := "No, add item",
-                                       remove := "No, remove item",
-                                       show_order := "Show ordered items",
-                                       cancel_order := "cancel order"))
-
-            choices = (*orders, cancel := "cancel")
-
-            if confirm == edit:
-                item_to_edit = get_choice_loop("Which would you like to edit the amount of?", choices)
-                if item_to_edit == cancel:
-                    print("MSG: Cancelling order edit...\n")
-                    continue
-                while True:
-                    new_amount = get_num_loop(f"New amount of {item_to_edit!r}: ", numtype="int")
-                    if new_amount < 0:
-                        print("MSG: Invalid amount.\n")
-                        continue
-                    elif new_amount == 0:
-                        print("TIP: Consider REMOVING the order.\n")
-                    else:
-                        modify_order_amount(item_to_edit, "edit", new_amount)
-                    break
-            elif confirm == remove:
-                to_remove = get_choice_loop("Which order would you like to remove?", choices)
-                if to_remove == cancel:
-                    print("MSG: Cancelling order deletion...\n")
-                elif len(orders) == 1:
-                    print("TIP: Consider CANCELLING the order.\n")
-                else:
-                    modify_order_amount(to_remove, "remove")
-            elif confirm == add:
-                order = take_order(customer_num, is_in_confirmation=True)
-                if order == 1:
-                    continue
-                item, amount = *order.keys(), *order.values()
-                customer_bill += menu_items[item] * amount
-                print(f"MSG: Added item {item!r} in orders.\n")
-                orders.update(order)
-            elif confirm == cancel_order:
-                if confirm_action("Cancel the whole order", 2):
-                    print(f"Customer #{customer_num} cancelled their order.\n")
-                    is_cancelled = True
-                    break
-            elif confirm == show_order:
-                print("Ordered items:")
-                for item in orders:
-                    print(f"> {item}: {CURR}{orders[item]:,g} x {menu_items[item]:,g}")
-                print(f"\nTotal: {CURR}{customer_bill:,g}")
-                if customer_is_discountable:
-                    print(f"Discounted: {CURR}{customer_bill - customer_bill * DISCOUNT:,g}\n")
-                else:
-                    print("DISCOUNT NOT APPLICABLE.\n")
-            else:
-                break
-
-        if is_cancelled:
-            continue
-
-        customer_payment = get_payment(orders, customer_is_discountable)
-        print_receipt(orders, customer_num, customer_payment, customer_is_discountable)
 
 
 if __name__ == "__main__":
